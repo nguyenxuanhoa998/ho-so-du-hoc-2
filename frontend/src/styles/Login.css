@@ -57,6 +57,7 @@ body::before {
 
     background-size: 28px 28px;
     opacity: .38;
+    pointer-events: none;
 }
 
 /* PAGE */
@@ -251,6 +252,30 @@ main {
     color: var(--primary);
 
     text-decoration: none;
+}
+
+.link-button {
+    margin-left: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.auth-message {
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 10px;
+}
+
+.auth-error {
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+.auth-success {
+    background: #DCFCE7;
+    color: #166534;
 }
 
 /* BUTTON */
