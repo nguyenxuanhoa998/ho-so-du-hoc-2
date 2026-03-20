@@ -2,77 +2,77 @@ import React, { useMemo, useState } from "react";
 import { LayoutDashboard, UserCircle, FileText, FolderOpen, GraduationCap, LogOut, Bell, HelpCircle, Check, ArrowRight } from "lucide-react";
 
 const TARGET_CHECKLISTS = {
-  "Bac dai hoc - Nhom hoc sinh lop 12": [
-    "Giay xac nhan hoc sinh ban goc",
-    "Ket qua hoc tap lop 10, 11, hoc ky 1 lop 12",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan",
-    "Ho chieu",
-    "Chung chi ngoai ngu Anh/Trung",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc đại học - Nhóm học sinh lớp 12": [
+    "Giấy xác nhận học sinh bản gốc",
+    "Kết quả học tập lớp 10, 11, học kỳ 1 lớp 12",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân",
+    "Hộ chiếu",
+    "Chứng chỉ ngoại ngữ Anh/Trung",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac dai hoc - Nhom da tot nghiep THPT": [
-    "Bang THPT",
-    "Hoc ba THPT",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan",
-    "Ho chieu",
-    "Chung chi ngoai ngu Anh/Trung",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc đại học - Nhóm đã tốt nghiệp THPT": [
+    "Bằng THPT",
+    "Học bạ THPT",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân",
+    "Hộ chiếu",
+    "Chứng chỉ ngoại ngữ Anh/Trung",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac thac si - Nhom sinh vien nam cuoi": [
-    "Giay xac nhan sinh vien nam cuoi",
-    "Bang diem Dai hoc den thoi diem nop ho so",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan",
-    "Ho chieu",
-    "Chung chi ngoai ngu Anh/Trung",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc thạc sĩ - Nhóm sinh viên năm cuối": [
+    "Giấy xác nhận sinh viên năm cuối",
+    "Bảng điểm Đại học đến thời điểm nộp hồ sơ",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân",
+    "Hộ chiếu",
+    "Chứng chỉ ngoại ngữ Anh/Trung",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac thac si - Nhom sinh vien da tot nghiep": [
-    "Bang Dai hoc",
-    "Bang diem Dai hoc",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan",
-    "Ho chieu",
-    "Chung chi ngoai ngu Anh/Trung",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc thạc sĩ - Nhóm sinh viên đã tốt nghiệp": [
+    "Bằng Đại học",
+    "Bảng điểm Đại học",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân",
+    "Hộ chiếu",
+    "Chứng chỉ ngoại ngữ Anh/Trung",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac chuyen tiep": [
-    "Giay xac nhan sinh vien",
-    "Bang diem Dai hoc den thoi diem nop ho so",
-    "Bang THPT",
-    "Hoc ba THPT",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan",
-    "Ho chieu",
-    "Chung chi ngoai ngu Anh/Trung",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc chuyển tiếp": [
+    "Giấy xác nhận sinh viên",
+    "Bảng điểm Đại học đến thời điểm nộp hồ sơ",
+    "Bằng THPT",
+    "Học bạ THPT",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân",
+    "Hộ chiếu",
+    "Chứng chỉ ngoại ngữ Anh/Trung",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac tien si": [
-    "Bang Thac si",
-    "Bang diem Thac si",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan",
-    "Ho chieu",
-    "Chung chi ngoai ngu Anh/Trung",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc tiến sĩ": [
+    "Bằng Thạc sĩ",
+    "Bảng điểm Thạc sĩ",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân",
+    "Hộ chiếu",
+    "Chứng chỉ ngoại ngữ Anh/Trung",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
 };
@@ -121,7 +121,7 @@ export default function Step2Form({ user, profile, onBack, onLogout }) {
         .doc-card.done { border-style:solid; border-color:#e1e8f4; background:#f9fbff; }
         .doc-left { display:grid; gap:6px; }
         .doc-title { font-size:18px; font-weight:700; } .doc-sub { color:#6c80a2; font-size:13px; } .doc-name { font-size:12px; color:#6d80a2; }
-        .upload-btn { height:38px; border:none; border-radius:19px; padding:0 18px; background:#2563eb; color:#fff; cursor:pointer; font-size:14px; font-weight:600; display:inline-flex; align-items:center; }
+        .upload-btn { height:42px; min-width:132px; border:none; border-radius:21px; padding:0 20px; background:#2563eb; color:#fff; cursor:pointer; font-size:15px; font-weight:600; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
         .upload-hidden { display:none; }
         .file-pill { border:1px solid #dfe6f1; border-radius:12px; background:#fff; padding:10px 12px; min-width:190px; }
         .file-name { font-size:15px; } .file-size { font-size:12px; color:#6d80a2; }
@@ -134,16 +134,16 @@ export default function Step2Form({ user, profile, onBack, onLogout }) {
         <div className="brand"><GraduationCap size={24} /> GlobalStudy</div>
         <div className="user-card">
           <img src="https://ui-avatars.com/api/?name=Alex+Smith&background=random" className="avatar" alt="User" />
-          <div className="user-info"><span className="name">{displayName}</span><span className="role">Tai khoan sinh vien</span></div>
+          <div className="user-info"><span className="name">{displayName}</span><span className="role">Tài khoản sinh viên</span></div>
         </div>
         <nav className="nav-menu">
-          <div className="nav-item"><LayoutDashboard size={18} /> Bang dieu khien</div>
-          <div className="nav-item"><UserCircle size={18} /> Ho so cua toi</div>
-          <div className="nav-item"><FileText size={18} /> Don ung tuyen</div>
-          <div className="nav-item active"><FolderOpen size={18} /> Tai lieu</div>
-          <div className="nav-item"><GraduationCap size={18} /> Truong dai hoc</div>
+          <div className="nav-item"><LayoutDashboard size={18} /> Bảng điều khiển</div>
+          <div className="nav-item"><UserCircle size={18} /> Hồ sơ của tôi</div>
+          <div className="nav-item"><FileText size={18} /> Đơn ứng tuyển</div>
+          <div className="nav-item active"><FolderOpen size={18} /> Tài liệu</div>
+          <div className="nav-item"><GraduationCap size={18} /> Trường đại học</div>
         </nav>
-        <button className="logout" onClick={onLogout}><LogOut size={18} /> Dang xuat</button>
+        <button className="logout" onClick={onLogout}><LogOut size={18} /> Đăng xuất</button>
       </aside>
 
       <main className="main-content">
@@ -153,14 +153,14 @@ export default function Step2Form({ user, profile, onBack, onLogout }) {
         </header>
         <div className="content-shell">
           <div className="stepper">
-            <div className="step-item done"><div className="step-circle"><Check size={16} /></div><span className="step-label">Thong tin ca nhan</span></div>
+            <div className="step-item done"><div className="step-circle"><Check size={16} /></div><span className="step-label">Thông tin cá nhân</span></div>
             <div className="step-divider active"></div>
-            <div className="step-item active"><div className="step-circle">2</div><span className="step-label">Tai lieu</span></div>
+            <div className="step-item active"><div className="step-circle">2</div><span className="step-label">Tài liệu</span></div>
             <div className="step-divider"></div>
-            <div className="step-item"><div className="step-circle">3</div><span className="step-label">Kiem tra lai</span></div>
+            <div className="step-item"><div className="step-circle">3</div><span className="step-label">Kiểm tra lại</span></div>
           </div>
           <section className="form-container">
-            <div className="form-title"><h2>Tai tai lieu</h2><p>Checklist duoc sinh tu dong theo nhom ban da chon.</p></div>
+            <div className="form-title"><h2>Tải tài liệu</h2><p>Checklist được sinh tự động theo nhóm bạn đã chọn.</p></div>
             <div className="upload-list">
               {docs.map((docName, index) => {
                 const uploaded = uploadedDocs[docName];
@@ -168,8 +168,8 @@ export default function Step2Form({ user, profile, onBack, onLogout }) {
                   <div className={`doc-card ${uploaded ? "done" : ""}`} key={docName}>
                     <div className="doc-left">
                       <div className="doc-title">{index + 1}. {docName}</div>
-                      <div className="doc-sub">Tai lieu can nop cho nhom hien tai.</div>
-                      <div className="doc-name">Goi y ten file: {fullName}_{docName}</div>
+                      <div className="doc-sub">Tài liệu cần nộp cho nhóm hiện tại.</div>
+                      <div className="doc-name">Gợi ý tên file: {fullName}_{docName}</div>
                     </div>
                     {uploaded ? (
                       <div className="file-pill"><div className="file-name">{uploaded.name}</div><div className="file-size">{uploaded.size}</div></div>
@@ -181,8 +181,8 @@ export default function Step2Form({ user, profile, onBack, onLogout }) {
               })}
             </div>
             <div className="form-footer">
-              <button className="btn-prev" type="button" onClick={onBack}>Quay lai</button>
-              <button className="btn-next" type="button">Tiep theo <ArrowRight size={18} /></button>
+              <button className="btn-prev" type="button" onClick={onBack}>Quay lại</button>
+              <button className="btn-next" type="button">Tiếp theo <ArrowRight size={18} /></button>
             </div>
           </section>
         </div>

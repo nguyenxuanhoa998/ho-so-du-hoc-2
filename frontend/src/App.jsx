@@ -1,6 +1,7 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import Step1Form from "./Step1Form";
+import AdminPortalPage from "./pages/AdminPortalPage";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -13,8 +14,13 @@ function App() {
     return <Step1Form user={currentUser} onLogout={() => setCurrentUser(null)} />;
   }
 
+  if (currentUser.role === "admin") {
+    return <AdminPortalPage user={currentUser} onLogout={() => setCurrentUser(null)} onLoginAsStudent={setCurrentUser} />;
+  }
+
   return <LoginPage onLoginSuccess={setCurrentUser} />;
 
 }
 
 export default App;
+

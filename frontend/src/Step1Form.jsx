@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   UserCircle,
@@ -12,115 +12,119 @@ import {
   ArrowRight,
   Check,
   ShieldCheck,
-  FileBadge,
+  Pencil,
 } from "lucide-react";
 
-const CURRENT_LEVEL_OPTIONS = ["Bac dai hoc", "Bac thac si", "Bac chuyen tiep", "Bac tien si"];
+const CURRENT_LEVEL_OPTIONS = ["Bậc đại học", "Bậc thạc sĩ", "Bậc chuyển tiếp", "Bậc tiến sĩ"];
 const TARGET_LEVEL_OPTIONS = [
-  "Bac dai hoc - Nhom hoc sinh lop 12",
-  "Bac dai hoc - Nhom da tot nghiep THPT",
-  "Bac thac si - Nhom sinh vien nam cuoi",
-  "Bac thac si - Nhom sinh vien da tot nghiep",
-  "Bac chuyen tiep",
-  "Bac tien si",
+  "Bậc đại học - Nhóm học sinh lớp 12",
+  "Bậc đại học - Nhóm đẫ tốt nghiệp THPT",
+  "Bậc thạc sĩ - Nhóm sinh viên năm cuối",
+  "Bậc thạc sĩ  - Nhóm sinh viên đẫ tốt nghiệp",
+  "Bậc chuyển tiếp",
+  "Bậc tiến sĩ",
 ];
 
+
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
 const TARGET_CHECKLISTS = {
-  "Bac dai hoc - Nhom hoc sinh lop 12": [
-    "Giay xac nhan hoc sinh ban goc",
-    "Ket qua hoc tap lop 10, 11, hoc ky 1 lop 12 (co dau)",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan photo",
-    "Ho chieu photo (neu co)",
-    "Chung chi ngoai ngu Anh/Trung (neu co)",
-    "Ho chieu",
-    "Anh the",
-    "Giay xac nhan hoc sinh",
-    "Ket qua hoc tap",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc đại học - Nhóm học sinh lớp 12": [
+    "Giấy xác nhận học sinh bản gốc",
+    "Kết quả học tập lớp 10, 11, học kỳ 1 lớp 12 (có dấu)",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân photo",
+    "Họ chiếu photo (nếu có)",
+    "Chứng chỉ ngọai ngữ Anh/Trung (nếu có)",
+    "Hộ chiếu",
+    "Ảnh thẻ",
+    "Giấy xác nhận học sinh",
+    "Kết quả học tập",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac dai hoc - Nhom da tot nghiep THPT": [
-    "Bang THPT ban goc",
-    "Hoc ba THPT ban goc",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan photo",
-    "Ho chieu photo (neu co)",
-    "Chung chi ngoai ngu Anh/Trung (neu co)",
-    "Ho chieu",
-    "Anh the",
-    "Bang THPT",
-    "Hoc ba",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc đại học - Nhóm đẫ tốt nghiệp THPT": [
+    "Bằng THPT bản gốc",
+    "Học bạ THPT bản gốc",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân photo",
+    "Hộ chiếu photo (nếu có)",
+    "Chứng chỉ ngọai ngữ Anh/Trung (nếu có)",
+    "Hộ chiếu",
+    "Ảnh thẻ",
+    "Bằng THPT",
+    "Học bạ",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac thac si - Nhom sinh vien nam cuoi": [
-    "Giay xac nhan sinh vien nam cuoi ban goc",
-    "Bang diem Dai hoc den thoi diem nop ho so ban goc",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan photo",
-    "Ho chieu photo (neu co)",
-    "Chung chi ngoai ngu Anh/Trung (neu co)",
-    "Ho chieu",
-    "Anh the",
-    "Bang THPT",
-    "Hoc ba",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc thạc sĩ - Nhóm sinh viên năm cuối": [
+    "Giấy xác nhận sinh viên năm cuối bản gốc",
+    "Bảng điểm Đại học đến thời điểm nộp hồ sơ bản gốc",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân photo",
+    "Hộ chiếu photo (nếu có)",
+    "Chứng chỉ ngọai ngữ Anh/Trung (nếu có)",
+    "Hộ chiếu",
+    "Ảnh thẻ",
+    "Bằng THPT",
+    "Học bạ",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac thac si - Nhom sinh vien da tot nghiep": [
-    "Bang Dai hoc ban goc",
-    "Bang diem Dai hoc ban goc",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan photo",
-    "Ho chieu photo (neu co)",
-    "Chung chi ngoai ngu Anh/Trung (neu co)",
-    "Anh the",
-    "Ho chieu",
-    "Bang Dai hoc",
-    "Bang diem",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc thạc sĩ  - Nhóm sinh viên đẫ tốt nghiệp": [
+    "Bằng Đại học bản gốc",
+    "Bảng điểm Đại học bản gốc",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân photo",
+    "Hộ chiếu photo (nếu có)",
+    "Chứng chỉ ngọai ngữ Anh/Trung (nếu có)",
+    "Hộ chiếu",
+    "Ảnh thẻ",
+    "Bằng THPT",
+    "Học bạ",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac chuyen tiep": [
-    "Giay xac nhan sinh vien ban goc",
-    "Bang diem Dai hoc den thoi diem nop ho so ban goc",
-    "Bang THPT ban goc",
-    "Hoc ba THPT ban goc",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan photo",
-    "Ho chieu photo (neu co)",
-    "Chung chi ngoai ngu Anh/Trung (neu co)",
-    "Anh the",
-    "Ho chieu",
-    "Giay xac nhan sinh vien",
-    "Bang diem den thoi diem hien tai",
-    "Ban sao giay khai sinh",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc chuyển tiếp": [
+    "Giấy xác nhận sinh viên bản gốc",
+    "Bảng điểm Đai học đến thời điểm nộp hồ sơ bản gốc",
+    "Bằng THPT bản gốc",
+    "Học bạ THPT bản gốc",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân photo",
+    "Hộ chiếu photo (nếu có)",
+    "Chứng chỉ ngọai ngữ Anh/Trung (nếu có)",
+    "Hộ chiếu",
+    "Ảnh thẻ",
+    "Bằng THPT",
+    "Học bạ",
+    "Bản sao giấy khai sinh",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
-  "Bac tien si": [
-    "Bang Thac si ban goc",
-    "Bang diem Thac si ban goc",
-    "10 anh 4x6 nen trang",
-    "Can cuoc cong dan photo",
-    "Ho chieu photo (neu co)",
-    "Chung chi ngoai ngu Anh/Trung (neu co)",
-    "Anh the",
-    "Ho chieu",
-    "Bang Thac si",
-    "Bang diem Thac si",
-    "CCCD photo cong chung",
-    "Video gioi thieu ban than",
+  "Bậc tiến sĩ": [
+    "Bằng Thạc sĩ bản gốc",
+    "Bảng điểm Thạc sĩ bản gốc",
+    "10 ảnh 4x6 nền trắng",
+    "Căn cước công dân photo",
+    "Hộ chiếu photo (nếu có)",
+    "Chứng chỉ ngọai ngữ Anh/Trung (nếu có)",
+    "Ảnh thẻ",
+    "Hộ chiếu",
+    "Bằng Thạc sĩ",
+    "Bảng điểm Thạc sĩ",
+    "CCCD photo công chứng",
+    "Video giới thiệu bản thân",
     "CV",
   ],
 };
@@ -149,7 +153,66 @@ function uniqueDocs(list) {
   return result;
 }
 
+function sanitizePathSegment(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-z0-9_-]+/gi, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 60);
+}
+
+function extractFileNameFromUrl(url) {
+  if (!url) return "";
+  try {
+    const decoded = decodeURIComponent(url);
+    const cleaned = decoded.split("?")[0];
+    const parts = cleaned.split("/");
+    return parts[parts.length - 1] || "";
+  } catch (e) {
+    const cleaned = url.split("?")[0];
+    const parts = cleaned.split("/");
+    return parts[parts.length - 1] || "";
+  }
+}
+
+function hasUploadedDoc(docEntry) {
+  return !!(docEntry?.url || (docEntry?.name && docEntry.name.trim()));
+}
+
+function getFileExtension(name) {
+  if (!name) return "";
+  const idx = name.lastIndexOf(".");
+  if (idx <= 0 || idx === name.length - 1) return "";
+  return name.slice(idx + 1).toLowerCase();
+}
+
+function parseSizeToBytes(sizeText) {
+  if (!sizeText) return 0;
+  const match = sizeText.trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(b|kb|mb|gb|tb)$/i);
+  if (!match) return 0;
+  const value = Number(match[1]);
+  if (Number.isNaN(value)) return 0;
+  const unit = match[2].toLowerCase();
+  const multipliers = { b: 1, kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3, tb: 1024 ** 4 };
+  return Math.round(value * (multipliers[unit] || 1));
+}
+
+function toTimestamp(value) {
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("vi-VN") + " " + d.toLocaleTimeString("vi-VN");
+}
+
 export default function Step1Form({ user, onLogout }) {
+  const API_BASE = "http://localhost:5000/api/student";
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -163,43 +226,362 @@ export default function Step1Form({ user, onLogout }) {
     address: "",
   });
   const [uploadedDocs, setUploadedDocs] = useState({
-    
+
   });
+  const [uploadingDocs, setUploadingDocs] = useState({});
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isStep1Locked, setIsStep1Locked] = useState(false);
+  const [allowStep1Edit, setAllowStep1Edit] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [sortOption, setSortOption] = useState("default");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const goToStep2 = () => {
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user?.id) {
+        setLoadingProfile(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/profile/${user.id}`);
+        const data = await res.json();
+        if (data.profile) {
+          setFormData((prev) => ({
+            ...prev,
+            firstName: data.profile.first_name || "",
+            lastName: data.profile.last_name || "",
+            email: data.profile.email || prev.email,
+            phone: data.profile.phone || "",
+            birthday: data.profile.birthday || "",
+            nationality: data.profile.nationality || "",
+            currentLevel: data.profile.current_level || "",
+            targetLabel: data.profile.target_label || "",
+            address: data.profile.address || "",
+          }));
+          const hasSavedStep1 =
+            !!data.profile.first_name ||
+            !!data.profile.last_name ||
+            !!data.profile.email ||
+            !!data.profile.phone ||
+            !!data.profile.target_label;
+          setIsStep1Locked(hasSavedStep1);
+          setAllowStep1Edit(false);
+          const docsMap = {};
+          (data.documents || []).forEach((d) => {
+            const fileUrl = d.file_name || "";
+            const displayName = extractFileNameFromUrl(fileUrl) || fileUrl;
+            docsMap[d.doc_name] = {
+              name: displayName,
+              url: fileUrl,
+              size: d.file_size || "",
+              sizeBytes: parseSizeToBytes(d.file_size || ""),
+              uploadedAt: d.updated_at || d.created_at || "",
+            };
+          });
+          setUploadedDocs(docsMap);
+
+          if (data.profile.is_completed === 1) {
+            setIsCompleted(true);
+            setCurrentStep(3);
+          } else if ((data.documents || []).length > 0) {
+            setCurrentStep(2);
+          } else {
+            setCurrentStep(1);
+          }
+        }
+      } catch (e) {
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+    loadProfile();
+  }, [user?.id]);
+
+  const goToStep2 = async () => {
+    if (isStep1Locked && !allowStep1Edit) {
+      setCurrentStep(2);
+      return;
+    }
+
     if (!formData.lastName || !formData.firstName || !formData.email || !formData.phone) {
-      alert("Vui long nhap day du Ho, Ten, Email va So dien thoai.");
+      alert("Vui lòng nhập đầy đủ Họ, Tên, Email và Số điện thoại.");
       return;
     }
     if (!formData.targetLabel) {
-      alert("Vui long chon Trinh do bang cap mong muon.");
+      alert("Vui lòng chọn Trình độ bằng cấp mong muốn.");
       return;
     }
-    setCurrentStep(2);
+    if (!user?.id) {
+      alert("Bạn cần đăng nhập lại để lưu thông tin vào hệ thống.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          birthday: formData.birthday,
+          nationality: formData.nationality,
+          currentLevel: formData.currentLevel,
+          targetLabel: formData.targetLabel,
+          address: formData.address,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Không thể lưu thông tin cá nhân.");
+      }
+
+      setCurrentStep(2);
+      setIsStep1Locked(true);
+      setAllowStep1Edit(false);
+    } catch (e) {
+      alert(e.message || "Lưu thông tin thất bại. Vui lòng thử lại.");
+    }
   };
 
-  const handleUpload = (key, event) => {
+  const handleUpload = async (key, event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const size = `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
-    setUploadedDocs((prev) => ({ ...prev, [key]: { name: file.name, size } }));
+    if (!user?.id) {
+      alert("Bạn cần đăng nhập lại để tải tệp.");
+      return;
+    }
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      alert("Chưa cấu hình Cloudinary. Vui lòng kiểm tra file .env.");
+      return;
+    }
+    const sizeBytes = file.size || 0;
+    const size = `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+    const uploadedAt = new Date(file.lastModified || Date.now()).toISOString();
+    setUploadingDocs((prev) => ({ ...prev, [key]: true }));
+    try {
+      const safeDoc = sanitizePathSegment(key);
+      const safeName = sanitizePathSegment(file.name) || "tep";
+      const publicId = `${Date.now()}_${safeName}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+      formData.append("folder", `student_docs/${user.id}/${safeDoc}`);
+      formData.append("public_id", publicId);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error?.message || "Không thể tải tệp lên Cloudinary.");
+      }
+      const url = data.secure_url || "";
+      setUploadedDocs((prev) => ({
+        ...prev,
+        [key]: {
+          name: file.name,
+          url,
+          size,
+          sizeBytes,
+          uploadedAt,
+        },
+      }));
+    } catch (err) {
+      alert(err.message || "Không thể tải tệp. Vui lòng thử lại.");
+    } finally {
+      setUploadingDocs((prev) => ({ ...prev, [key]: false }));
+    }
   };
+
+  const handleDeleteDoc = async (docName) => {
+    if (!docName) return;
+    const confirmed = window.confirm(`Bạn có chắc muốn xóa tài liệu "${docName}"?`);
+    if (!confirmed) return;
+    if (!user?.id) {
+      alert("Bạn cần đăng nhập lại để xóa tệp.");
+      return;
+    }
+    try {
+      const uploaded = uploadedDocs[docName] || {};
+      const res = await fetch(`${API_BASE}/documents/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          docName,
+          fileUrl: uploaded.url || "",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Không thể xóa tài liệu.");
+      }
+      if (data.cloudinaryError) {
+        alert(` xóa trong hệ thống nhưng Cloudinary báo lỗi: ${data.cloudinaryError}`);
+      }
+      setUploadedDocs((prev) => ({
+        ...prev,
+        [docName]: {
+          name: "",
+          size: "",
+          type: "",
+          url: "",
+          uploadedAt: "",
+        },
+      }));
+    } catch (err) {
+      alert(err.message || "Không thể xóa tài liệu.");
+    }
+  };
+
 
   const displayName =
     (user?.fullName && user.fullName.trim()) ||
     (user?.email ? user.email.split("@")[0] : "Student");
-  const accountLabel = user?.role === "student" ? "Tai khoan sinh vien" : "Tai khoan nhan vien";
+  const accountLabel = user?.role === "student" ? "Tài khỏan sinh viên" : "Tài khoản nhân viên";
   const fullName = `${formData.lastName} ${formData.firstName}`.trim() || displayName;
 
   const requiredDocs = useMemo(() => {
     const source = TARGET_CHECKLISTS[formData.targetLabel] || [];
     return uniqueDocs(source);
   }, [formData.targetLabel]);
+  const displayDocs = useMemo(() => {
+    const items = requiredDocs.map((docName, index) => {
+      const uploaded = uploadedDocs[docName];
+      const isUploaded = hasUploadedDoc(uploaded);
+      const sizeBytes = uploaded?.sizeBytes ?? parseSizeToBytes(uploaded?.size || "");
+      const fileType = getFileExtension(uploaded?.name || extractFileNameFromUrl(uploaded?.url || ""));
+      const uploadedAt = uploaded?.uploadedAt || uploaded?.updatedAt || uploaded?.createdAt || "";
+      const uploadedAtTs = toTimestamp(uploadedAt);
+      return { docName, index, uploaded, isUploaded, sizeBytes, fileType, uploadedAt, uploadedAtTs };
+    });
+
+    items.sort((a, b) => {
+      if (sortOption === "default") return a.index - b.index;
+      if (sortOption !== "missing" && a.isUploaded !== b.isUploaded) return a.isUploaded ? -1 : 1;
+
+      switch (sortOption) {
+        case "missing":
+          return (a.isUploaded ? 1 : 0) - (b.isUploaded ? 1 : 0) || a.index - b.index;
+        case "size_desc":
+          return b.sizeBytes - a.sizeBytes || a.index - b.index;
+        case "size_asc":
+          return a.sizeBytes - b.sizeBytes || a.index - b.index;
+        case "type_asc":
+          return a.fileType.localeCompare(b.fileType) || a.index - b.index;
+        case "date_desc":
+          return b.uploadedAtTs - a.uploadedAtTs || a.index - b.index;
+        case "date_asc":
+          return a.uploadedAtTs - b.uploadedAtTs || a.index - b.index;
+        default:
+          return a.index - b.index;
+      }
+    });
+
+    return items;
+  }, [requiredDocs, uploadedDocs, sortOption]);
+
+  const isStep2Complete = requiredDocs.length > 0 && requiredDocs.every((doc) => hasUploadedDoc(uploadedDocs[doc]));
+  const missingDocs = requiredDocs.filter((doc) => !hasUploadedDoc(uploadedDocs[doc]));
+  const hasStep1Data =
+    !!formData.lastName &&
+    !!formData.firstName &&
+    !!formData.email &&
+    !!formData.phone &&
+    !!formData.targetLabel;
+
+  const goToStep3 = async () => {
+    if (!user?.id) {
+      alert("Bạn cần đăng nhập lại để tiếp tục.");
+      return;
+    }
+    try {
+      const documents = requiredDocs.map((doc) => ({
+        docName: doc,
+        fileName: uploadedDocs[doc]?.url || uploadedDocs[doc]?.name || "",
+        fileSize: uploadedDocs[doc]?.size || "",
+      }));
+      const docsRes = await fetch(`${API_BASE}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, documents }),
+      });
+      if (!docsRes.ok) throw new Error("Không thể lưu tài liệu.");
+      const completeRes = await fetch(`${API_BASE}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, isCompleted: isStep2Complete ? 1 : 0 }),
+      });
+      if (!completeRes.ok) throw new Error("Không thể cập nhật trạng thái hồ sơ.");
+      setCurrentStep(3);
+    } catch (e) {
+      alert("Không thể lưu tài liệu. Thử lại.");
+    }
+  };
+
+  const jumpToStep = (targetStep) => {
+    if (targetStep === 1) {
+      setCurrentStep(1);
+      return;
+    }
+    if (targetStep === 2) {
+      if (!hasStep1Data) {
+        alert("Vui lòng hoàn tất thông tin cá nhân trước.");
+        return;
+      }
+      setCurrentStep(2);
+      return;
+    }
+    if (targetStep === 3) {
+      if (!hasStep1Data) {
+        alert("Vui long hoan tat thong tin ca nhan truoc.");
+        return;
+      }
+      setCurrentStep(3);
+    }
+  };
+
+  const unlockStep1FromReview = () => {
+    setAllowStep1Edit(true);
+    setIsStep1Locked(false);
+    setCurrentStep(1);
+  };
+
+  const handleFinalize = async () => {
+    if (!user?.id) {
+      alert("Không tìm thấy thông tin người dùng đăng nhập.");
+      return;
+    }
+    if (isFinalizing) return;
+    if (!isStep2Complete) {
+      alert(`Bạn còn thiếu ${missingDocs.length} tài liệu. Vui lòng tải bổ sung trước khi hoàn tất.`);
+      return;
+    }
+    setIsFinalizing(true);
+    try {
+      await fetch(`${API_BASE}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, isCompleted: 1 }),
+      });
+      setIsCompleted(true);
+      alert("Hồ sơ đã được hoàn tất và lưu vào hệ thống.");
+    } catch (e) {
+      alert("Không thể hòan tất hồ sơ. Thử lại.");
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
 
   return (
     <div className="global-study-app">
@@ -264,11 +646,16 @@ export default function Step1Form({ user, onLogout }) {
           font-size: 14px;
           line-height: 1.2;
           white-space: nowrap;
+          cursor: pointer;
+          user-select: none;
         }
         .nav-item.active {
           background: #eaf0ff;
           color: #2255d7;
           font-weight: 700;
+        }
+        .nav-item:hover {
+          background: #f3f7ff;
         }
         .logout {
           border: none;
@@ -372,13 +759,34 @@ export default function Step1Form({ user, onLogout }) {
           font-weight: 600;
         }
         .step-item.done .step-circle {
-          background: #2563eb;
-          border-color: #2563eb;
+          background: #22c55e;
+          border-color: #22c55e;
           color: #fff;
         }
         .step-item.done .step-label {
-          color: #2563eb;
+          color: #16a34a;
           font-weight: 600;
+        }
+        .completion-note {
+          margin: 8px 24px 0;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #16a34a;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        .completion-note.warn { color: #b45309; }
+
+        .doc-card.review-success {
+          border-style: solid;
+          border-color: #86d6a4;
+          background: #eafaf1;
+        }
+        .doc-card.review-warning {
+          border-style: solid;
+          border-color: #f4b4b4;
+          background: #fdecec;
         }
         .step-divider.active {
           background: #2563eb;
@@ -478,14 +886,35 @@ export default function Step1Form({ user, onLogout }) {
           background: #eef2f8;
           color: #4b6083;
         }
-        .btn-next {
-          background: #2563eb;
-          color: #fff;
+        
+        .sort-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 24px 12px;
+        }
+        .sort-label {
+          font-size: 14px;
+          color: #4f6386;
+          font-weight: 600;
+        }
+        .sort-select {
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid #dbe3ef;
+          background: #fff;
+          padding: 0 10px;
+          font-size: 14px;
+          color: #1f2a3d;
         }
         .upload-list {
           padding: 24px;
           display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
+        }
+        @media (max-width: 1100px) {
+          .upload-list { grid-template-columns: 1fr; }
         }
         .upload-passport {
           border: 1px solid #e1e8f4;
@@ -527,12 +956,94 @@ export default function Step1Form({ user, onLogout }) {
           padding: 10px 12px;
           min-width: 180px;
         }
+        .file-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .file-actions-col {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          align-items: flex-end;
+        }
+        .btn-delete-doc {
+          height: 36px;
+          border: 1px solid #f3b4b4;
+          border-radius: 10px;
+          padding: 0 12px;
+          background: #fff5f5;
+          color: #b91c1c;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-width: 110px;
+          justify-content: center;
+        }
+        .btn-delete-doc:hover {
+          border-color: #ef4444;
+          color: #b91c1c;
+        }
+
         .file-name {
           font-size: 15px;
         }
         .file-size {
           font-size: 12px;
           color: #6d80a2;
+        }
+        .file-meta {
+          font-size: 11px;
+          color: #6d80a2;
+          margin-top: 2px;
+        }
+        .btn-edit-doc {
+          height: 36px;
+          border: 1px solid #d7e1f0;
+          border-radius: 10px;
+          padding: 0 12px;
+          background: #fff;
+          color: #32517f;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          white-space: nowrap;
+          min-width: 110px;
+          justify-content: center;
+        }
+        .btn-edit-doc:hover {
+          border-color: #2563eb;
+          color: #2563eb;
+        }
+        .btn-download {
+          height: 36px;
+          border: 1px solid #d7e1f0;
+          border-radius: 10px;
+          padding: 0 12px;
+          background: #f8fbff;
+          color: #1d4ed8;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          text-decoration: none;
+        }
+        .btn-download:hover {
+          border-color: #2563eb;
+          color: #2563eb;
+        }
+        .btn-edit-doc.disabled,
+        .upload-btn.disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .upload-box {
           border: 2px dashed #dbe4f2;
@@ -551,15 +1062,20 @@ export default function Step1Form({ user, onLogout }) {
           justify-items: center;
         }
         .upload-btn {
-          height: 38px;
+          height: 42px;
+          min-width: 132px;
           border: none;
-          border-radius: 19px;
-          padding: 0 18px;
+          border-radius: 21px;
+          padding: 0 20px;
           background: #2563eb;
           color: #fff;
           cursor: pointer;
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 600;
+          line-height: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         .upload-note {
           font-size: 12px;
@@ -580,8 +1096,8 @@ export default function Step1Form({ user, onLogout }) {
         }
         .doc-card.done {
           border-style: solid;
-          border-color: #e1e8f4;
-          background: #f9fbff;
+          border-color: #b7e4c7;
+          background: #eafaf1;
         }
         .doc-left {
           display: grid;
@@ -610,18 +1126,19 @@ export default function Step1Form({ user, onLogout }) {
           </div>
         </div>
         <nav className="nav-menu">
-          <div className="nav-item"><LayoutDashboard size={18} /> Bang dieu khien</div>
-          <div className={`nav-item ${currentStep === 1 ? "active" : ""}`}><UserCircle size={18} /> Ho so cua toi</div>
-          <div className="nav-item"><FileText size={18} /> Don ung tuyen</div>
-          <div className={`nav-item ${currentStep === 2 ? "active" : ""}`}><FolderOpen size={18} /> Tai lieu</div>
-          <div className="nav-item"><GraduationCap size={18} /> Truong dai hoc</div>
+          <div className="nav-item"><LayoutDashboard size={18} /> Bảng điều khiển</div>
+          <div className={`nav-item ${currentStep === 1 ? "active" : ""}`} onClick={() => jumpToStep(1)}><UserCircle size={18} /> Hồ sơ của tôi</div>
+          <div className="nav-item"><FileText size={18} /> Đơn ứng tuyển</div>
+          <div className={`nav-item ${currentStep === 2 ? "active" : ""}`} onClick={() => jumpToStep(2)}><FolderOpen size={18} /> Tài liệu</div>
+          <div className={`nav-item ${currentStep === 3 ? "active" : ""}`} onClick={() => jumpToStep(3)}><ShieldCheck size={18} /> Kiểm tra lại</div>
+          <div className="nav-item"><GraduationCap size={18} /> Trường đại học</div>
         </nav>
-        <button className="logout" onClick={onLogout}><LogOut size={18} /> Dang xuat</button>
+        <button className="logout" onClick={onLogout}><LogOut size={18} /> Đăng xuất</button>
       </aside>
 
       <main className="main-content">
         <header className="top-header">
-          <h1>Tao ho so</h1>
+          <h1>Tạo hồ sơ</h1>
           <div className="header-actions"><div className="notif-btn"><Bell size={20} /><span className="notif-dot"></span></div><div className="header-divider"></div><HelpCircle size={19} /> Tro giup</div>
         </header>
 
@@ -629,61 +1146,100 @@ export default function Step1Form({ user, onLogout }) {
           <div className="stepper">
             <div className={`step-item ${currentStep === 1 ? "active" : currentStep > 1 ? "done" : ""}`}>
               <div className="step-circle">{currentStep > 1 ? <Check size={16} /> : "1"}</div>
-              <span className="step-label">Thong tin ca nhan</span>
+              <span className="step-label">Thông tin cá nhân</span>
             </div>
             <div className={`step-divider ${currentStep > 1 ? "active" : ""}`}></div>
-            <div className={`step-item ${currentStep === 2 ? "active" : ""}`}>
-              <div className="step-circle">2</div>
-              <span className="step-label">Tai lieu</span>
+            <div className={`step-item ${currentStep === 2 ? "active" : (isStep2Complete && currentStep >= 2) ? "done" : ""}`}>
+              <div className="step-circle">{(isStep2Complete && currentStep >= 2) ? <Check size={16} /> : "2"}</div>
+              <span className="step-label">Tài liệu</span>
             </div>
-            <div className="step-divider"></div>
-            <div className="step-item">
-              <div className="step-circle">3</div>
-              <span className="step-label">Kiem tra lai</span>
+            <div className={`step-divider ${currentStep > 2 ? "active" : ""}`}></div>
+            <div className={`step-item ${currentStep === 3 && !isCompleted ? "active" : isCompleted ? "done" : ""}`}>
+              <div className="step-circle">{isCompleted ? <Check size={16} /> : "3"}</div>
+              <span className="step-label">{isCompleted ? "Hoàn tất" : "Kiểm tra lại"}</span>
             </div>
           </div>
 
-          {currentStep === 1 && (
+          {loadingProfile && (
             <section className="form-container">
               <div className="form-title">
-                <h2>Thong tin ca nhan</h2>
-                <p>Dien day du thong tin chi tiet cua ban.</p>
+                <h2>Đang tải dữ liệu...</h2>
+                <p>Vui lòng chờ trong giây lát.</p>
               </div>
-
+            </section>
+          )}
+          {!loadingProfile && currentStep === 1 && (
+            <section className="form-container">
+              <div className="form-title">
+                <h2>Thông tin cá nhân</h2>
+                <p>Hoàn thiện thông tin cá nhân trước khi tải tài liệu.</p>
+              </div>
               <div className="grid-inputs">
                 <div className="input-box">
-                  <label>Ho</label>
-                  <input name="lastName" placeholder="Nguyen" value={formData.lastName} onChange={handleChange} />
+                  <label>Họ</label>
+                  <input
+                    name="lastName"
+                    placeholder="Nguyen"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    disabled={isStep1Locked}
+                  />
                 </div>
                 <div className="input-box">
-                  <label>Ten</label>
-                  <input name="firstName" placeholder="Van A" value={formData.firstName} onChange={handleChange} />
+                  <label>Tên</label>
+                  <input
+                    name="firstName"
+                    placeholder="Van A"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    disabled={isStep1Locked}
+                  />
                 </div>
                 <div className="input-box">
-                  <label>Dia chi Email</label>
-                  <input name="email" type="email" placeholder="nguyen.vana@example.com" value={formData.email} onChange={handleChange} />
+                  <label>Địa chỉ Email</label>
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="nguyen.vana@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    disabled={isStep1Locked}
+                  />
                 </div>
                 <div className="input-box">
-                  <label>So dien thoai</label>
-                  <input name="phone" placeholder="+84 912 345 678" value={formData.phone} onChange={handleChange} />
+                  <label>Số điện thoại</label>
+                  <input
+                    name="phone"
+                    placeholder="+84 912 345 678"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    disabled={isStep1Locked}
+                  />
                 </div>
                 <div className="input-box">
-                  <label>Ngay sinh</label>
-                  <input name="birthday" placeholder="mm/dd/yyyy" value={formData.birthday} onChange={handleChange} />
+                  <label>Ngày sinh</label>
+                  <input
+                    name="birthday"
+                    placeholder="mm/dd/yyyy"
+                    value={formData.birthday}
+                    onChange={handleChange}
+                    disabled={isStep1Locked}
+                  />
                 </div>
                 <div className="input-box">
-                  <label>Quoc tich</label>
+                  <label>Quốc tịch</label>
                   <input
                     name="nationality"
                     placeholder="Nhap quoc tich"
                     value={formData.nationality}
                     onChange={handleChange}
+                    disabled={isStep1Locked}
                   />
                 </div>
                 <div className="input-box">
-                  <label>Trinh do bang cap hien tai</label>
-                  <select name="currentLevel" value={formData.currentLevel} onChange={handleChange}>
-                    <option value="">Chon trinh do hien tai</option>
+                  <label>Trình độ bằng cấp hiện tại</label>
+                  <select name="currentLevel" value={formData.currentLevel} onChange={handleChange} disabled={isStep1Locked}>
+                    <option value="">Chọn trình độ hiện tại</option>
                     {CURRENT_LEVEL_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
@@ -691,9 +1247,9 @@ export default function Step1Form({ user, onLogout }) {
                   <ChevronDown className="select-chevron" size={16} />
                 </div>
                 <div className="input-box">
-                  <label>Trinh do bang cap mong muon</label>
-                  <select name="targetLabel" value={formData.targetLabel} onChange={handleChange}>
-                    <option value="">Chon trinh do mong muon</option>
+                  <label>Trình độ bằng cấp mong muốn</label>
+                  <select name="targetLabel" value={formData.targetLabel} onChange={handleChange} disabled={isStep1Locked}>
+                    <option value="">Chọn trình độ mong muốn</option>
                     {TARGET_LEVEL_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
@@ -701,48 +1257,82 @@ export default function Step1Form({ user, onLogout }) {
                   <ChevronDown className="select-chevron" size={16} />
                 </div>
                 <div className="input-box full-width">
-                  <label>Dia chi</label>
+                  <label>Địa chỉ</label>
                   <input
                     name="address"
-                    placeholder="So nha, Duong, Phuong/Xa, Quan/Huyen, Tinh/Thanh pho"
+                    placeholder="Số nhà, Đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố"
                     value={formData.address}
                     onChange={handleChange}
+                    disabled={isStep1Locked}
                   />
                 </div>
               </div>
 
               <div className="form-footer">
-                <button className="btn-prev">Quay lai</button>
-                <button className="btn-next" onClick={goToStep2}>Tiep theo <ArrowRight size={18} /></button>
+                <button className="btn-prev">Quay lại</button>
+                <button className="btn-next" onClick={goToStep2}>
+                  Tiếp theo <ArrowRight size={18} />
+                </button>
               </div>
             </section>
           )}
 
-          {currentStep === 2 && (
+
+          {!loadingProfile && currentStep === 2 && (
             <section className="form-container">
               <div className="form-title">
-                <h2>Tai tai lieu</h2>
-                <p>Checklist duoc sinh tu dong theo nhom ban da chon.</p>
+                <h2>Tải tài liệu </h2>
+                <p></p>
+              </div>
+              <div className="sort-row">
+                <div className="sort-label">Sắp xếp theo</div>
+                <select className="sort-select" value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
+                  <option value="default">Mặc định</option>
+                  <option value="missing">Hồ sơ chưa nộp </option>
+                  <option value="size_desc">Dung lượng : lớn đến bé</option>
+                  <option value="size_asc">Dung lượng : bé đến lớn</option>
+                  <option value="type_asc">Thứ tự tệp (A-Z)</option>
+                  <option value="date_desc">Ngày tải lên : mới nhất</option>
+                  <option value="date_asc">Ngày tải lên : cũ nhất</option>
+                </select>
               </div>
 
               <div className="upload-list">
-                {requiredDocs.map((docName, index) => {
-                  const uploaded = uploadedDocs[docName];
+                {displayDocs.map((item, index) => {
+                  const docName = item.docName;
+                  const uploaded = item.uploaded;
+                  const isUploaded = item.isUploaded;
+                  const fileType = item.fileType;
+                  const uploadedAt = item.uploadedAt;
+                  const isUploading = uploadingDocs[docName];
                   return (
-                    <div className={`doc-card ${uploaded ? "done" : ""}`} key={docName}>
+                    <div className={`doc-card ${isUploaded ? "done" : ""}`} key={docName}>
                       <div className="doc-left">
                         <div className="upload-title">{index + 1}. {docName}</div>
-                        <div className="upload-sub">Tai lieu theo nhom da chon.</div>
-                        <div className="doc-name">Goi y: {fullName}_{docName}</div>
+                        <div className="upload-sub">Tài liệu theo nhóm đã chọn. {!isUploaded ? "Trạng thái: Thiếu" : "Trạng thái: Đã nộp"}</div>
                       </div>
-                      {uploaded ? (
-                        <div className="file-pill">
-                          <div className="file-name">{uploaded.name}</div>
-                          <div className="file-size">{uploaded.size}</div>
+                      {isUploaded ? (
+                        <div className="file-actions">
+                          <div className="file-pill">
+                            <div className="file-name">{uploaded.name}</div>
+                            <div className="file-size">{uploaded.size}</div>
+                            <div className="file-meta">Loại: {fileType || "-"} | Ngày: {uploadedAt ? formatDate(uploadedAt) : "-"}</div>
+                          </div>
+                          {uploaded?.url && (
+                            <a className="btn-download" href={uploaded.url} target="_blank" rel="noreferrer">Xem</a>
+                          )}
+                          <div className="file-actions-col">
+                            <label className="btn-edit-doc">
+                              <Pencil size={14} />
+                              Chỉnh sửa
+                              <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
+                            </label>
+                            <button type="button" className="btn-delete-doc" onClick={() => handleDeleteDoc(docName)}>Xóa</button>
+                          </div>
                         </div>
                       ) : (
                         <label className="upload-btn">
-                          Chon tep tin
+                          Chọn tệp tin
                           <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
                         </label>
                       )}
@@ -752,8 +1342,63 @@ export default function Step1Form({ user, onLogout }) {
               </div>
 
               <div className="form-footer">
-                <button className="btn-prev" onClick={() => setCurrentStep(1)}>Quay lai</button>
-                <button className="btn-next">Tiep theo <ArrowRight size={18} /></button>
+                <button className="btn-prev" onClick={() => setCurrentStep(1)}>Quay lại</button>
+                <button className="btn-next" onClick={goToStep3}>Tiếp theo <ArrowRight size={18} /></button>
+              </div>
+            </section>
+          )}
+          {!loadingProfile && currentStep === 3 && (
+            <section className="form-container">
+              <div className="form-title">
+                <h2>Kiểm tra lại </h2>
+                <p>Vui lòng ra sóat toàn bộ thông tin trước khi gửi hồ sơ. </p>
+              </div>
+              {!isStep2Complete && (
+                <div className="completion-note warn">
+                  Bạn đang thiếu {missingDocs.length} tài liệu. Vẫn đã lưu tạm vào hệ thống, bạn có thể đăng nhập lại để nộp tiếp.
+                </div>
+              )}
+              {isCompleted && (
+                <div className="completion-note">
+                  <Check size={16} />
+                  Hoàn tất
+                </div>
+              )}
+
+              <div className="upload-list">
+                <div className="doc-card review-success">
+                  <div className="doc-left">
+                    <div className="upload-title">Thông tin cá nhân</div>
+                    <div className="upload-sub">Họ và tên: {fullName}</div>
+                    <div className="upload-sub">Email: {formData.email}</div>
+                    <div className="upload-sub">Số điện thoại: {formData.phone}</div>
+                    <div className="upload-sub">Ngày sinh: {formData.birthday}</div>
+                    <div className="upload-sub">Quốc tịch: {formData.nationality}</div>
+                    <div className="upload-sub">Địa chỉ: {formData.address}</div>
+                    <div className="upload-sub">Bằng cập hiện tại: {formData.currentLevel}</div>
+                    <div className="upload-sub">Bằng cấp mong muốn: {formData.targetLabel}</div>
+                  </div>
+                  <button className="btn-prev" onClick={unlockStep1FromReview}><Pencil size={14} /> Chỉnh sửa</button>
+                </div>
+
+                <div className={`doc-card ${isStep2Complete ? "review-success" : "review-warning"}`} >
+                  <div className="doc-left">
+                    <div className="upload-title">Danh sách tài liệu</div>
+                    {requiredDocs.map((doc) => (
+                      <div className="upload-sub" key={doc}>
+                        {doc}: {hasUploadedDoc(uploadedDocs[doc]) ? uploadedDocs[doc]?.name : "THIEU"}
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn-prev" onClick={() => setCurrentStep(2)}><Pencil size={14} /> Chỉnh sửa</button>
+                </div>
+              </div>
+
+              <div className="form-footer">
+                <button className="btn-prev" onClick={() => setCurrentStep(2)}>Quay lại</button>
+                <button className="btn-next" onClick={handleFinalize} disabled={isFinalizing}>
+                  {isFinalizing ? "Đang xử lý..." : "Hồ sơ đã hoàn tất"}
+                </button>
               </div>
             </section>
           )}
@@ -762,3 +1407,39 @@ export default function Step1Form({ user, onLogout }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

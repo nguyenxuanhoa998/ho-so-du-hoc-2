@@ -2,26 +2,26 @@ import { useMemo, useState } from "react";
 import "../styles/StudentPortal.css";
 
 const REQUIRED_DOCS = [
-    "Ho chieu (Passport)",
-    "Bang tot nghiep (Degree Certificate)",
-    "Bang diem (Academic Transcripts)",
-    "Anh chan dung",
+    "Hộ chiếu (Passport)",
+    "Bằng tốt nghiệp (Degree Certificate)",
+    "Bảng điểm (Academic Transcripts)",
+    "Ảnh chân dung",
 ];
 
 const CURRENT_EDUCATION_OPTIONS = [
-    "Bac dai hoc",
-    "Bac thac si",
-    "Bac chuyen tiep",
-    "Bac tien si",
+    "Bậc đai học",
+    "Bậc thạc sĩ",
+    "Bâc chuyển tiếp",
+    "Bậc tiến sĩ",
 ];
 
 const TARGET_PROGRAM_OPTIONS = [
-    "Bac dai hoc - Nhom hoc sinh lop 12",
-    "Bac dai hoc - Nhom da tot nghiep THPT",
-    "Bac thac si - Nhom sinh vien nam cuoi",
-    "Bac thac si - Nhom sinh vien da tot nghiep",
-    "Bac chuyen tiep",
-    "Bac tien si",
+    "Bậc đai học - Nhóm học sinh lớp 12",
+    "Bậc đai học - Nhóm đã tốt nghiệp THPT",
+    "Bậc thạc sĩ - Nhóm sinh viên năm cuối",
+    "Bậc thạc sĩ - Nhóm sinh viên đã tốt nghiệp",
+    "Bâc chuyển tiếp",
+    "Bậc tiến sĩ",
 ];
 
 export default function StudentPortalPage({ user, onLogout }) {
@@ -72,61 +72,61 @@ export default function StudentPortalPage({ user, onLogout }) {
                     <div className="avatar">A</div>
                     <div>
                         <div className="user-name">{user?.fullName || "Student"}</div>
-                        <div className="user-role">Tai khoan sinh vien</div>
+                        <div className="user-role">Tài khoản sinh viên</div>
                     </div>
                 </div>
-                <div className="menu-item">Bang dieu khien</div>
-                <div className="menu-item active">Ho so cua toi</div>
-                <div className="menu-item">Don ung tuyen</div>
-                <div className="menu-item">Tai lieu</div>
-                <div className="menu-item">Trung tam du hoc</div>
-                <button className="logout-btn" onClick={onLogout}>Dang xuat</button>
+                <div className="menu-item">Bảng điều khiển</div>
+                <div className="menu-item active">Hồ sơ của tôi</div>
+                <div className="menu-item">Đơn ứng tuyển</div>
+                <div className="menu-item">Tài liệu</div>
+                <div className="menu-item">Trung tâm du học</div>
+                <button className="logout-btn" onClick={onLogout}>Đăng xuất</button>
             </aside>
 
             <main className="portal-main">
-                <div className="topbar">Tao ho so</div>
+                <div className="topbar">Tạo hồ sơ</div>
 
                 <section className="stepper">
                     <div className="step-item">
                         <div className={`step ${step >= 1 ? "on" : ""}`}>1</div>
-                        <div className="step-label">Thong tin ca nhan</div>
+                        <div className="step-label">Thông tin cá nhân</div>
                     </div>
                     <div className={`line ${step >= 2 ? "on" : ""}`}></div>
                     <div className="step-item">
                         <div className={`step ${step >= 2 ? "on" : ""}`}>2</div>
-                        <div className="step-label">Tai lieu</div>
+                        <div className="step-label">Tài liệu</div>
                     </div>
                     <div className={`line ${step >= 3 ? "on" : ""}`}></div>
                     <div className="step-item">
                         <div className={`step ${step >= 3 ? "on" : ""}`}>3</div>
-                        <div className="step-label">Kiem tra lai</div>
+                        <div className="step-label">Kiểm tra lại</div>
                     </div>
                 </section>
 
                 {step === 1 && (
                     <section className="card">
-                        <h2>Thong tin ca nhan</h2>
-                        <p>Dien day du thong tin chi tiet cua ban.</p>
+                        <h2>Thông tin cá nhân</h2>
+                        <p>Điền đầy đủ thông tin chi tiết của bạn.</p>
                         <div className="grid2">
-                            <input placeholder="Ho" value={profile.firstName} onChange={(e) => handleProfileChange("firstName", e.target.value)} />
-                            <input placeholder="Ten" value={profile.lastName} onChange={(e) => handleProfileChange("lastName", e.target.value)} />
+                            <input placeholder="Họ" value={profile.firstName} onChange={(e) => handleProfileChange("firstName", e.target.value)} />
+                            <input placeholder="Tên" value={profile.lastName} onChange={(e) => handleProfileChange("lastName", e.target.value)} />
                             <input placeholder="Email" value={profile.email} onChange={(e) => handleProfileChange("email", e.target.value)} />
-                            <input placeholder="So dien thoai" value={profile.phone} onChange={(e) => handleProfileChange("phone", e.target.value)} />
-                            <input placeholder="Ngay sinh (dd/mm/yyyy)" value={profile.birthday} onChange={(e) => handleProfileChange("birthday", e.target.value)} />
+                            <input placeholder="Số điện thọai" value={profile.phone} onChange={(e) => handleProfileChange("phone", e.target.value)} />
+                            <input placeholder="Ngày sinh (dd/mm/yyyy)" value={profile.birthday} onChange={(e) => handleProfileChange("birthday", e.target.value)} />
                             <select value={profile.nationality} onChange={(e) => handleProfileChange("nationality", e.target.value)}>
-                                <option value="">Chon quoc tich</option>
-                                <option value="Viet Nam">Viet Nam</option>
-                                <option value="Dai Loan">Dai Loan</option>
-                                <option value="Khac">Khac</option>
+                                <option value="">Chọn quốc tịch</option>
+                                <option value="Viêt Nam">Việt Nam</option>
+                                <option value="Đài Loan">Đài Loan</option>
+                                <option value="Khác">Khác</option>
                             </select>
                             <select value={profile.currentEducation} onChange={(e) => handleProfileChange("currentEducation", e.target.value)}>
-                                <option value="">Chon trinh do hien tai</option>
+                                <option value="">Chọn trình độ hiện tại</option>
                                 {CURRENT_EDUCATION_OPTIONS.map((item) => (
                                     <option key={item} value={item}>{item}</option>
                                 ))}
                             </select>
                             <select value={profile.targetEducation} onChange={(e) => handleProfileChange("targetEducation", e.target.value)}>
-                                <option value="">Chon trinh do mong muon</option>
+                                <option value="">Chọn trình độ mong muốn</option>
                                 {TARGET_PROGRAM_OPTIONS.map((item) => (
                                     <option key={item} value={item}>{item}</option>
                                 ))}
@@ -134,16 +134,16 @@ export default function StudentPortalPage({ user, onLogout }) {
                         </div>
                         <input className="full" placeholder="Dia chi" value={profile.address} onChange={(e) => handleProfileChange("address", e.target.value)} />
                         <div className="actions">
-                            <button className="secondary" onClick={() => setStep(1)}>Quay lai</button>
-                            <button className="primary" disabled={!isStep1Done} onClick={() => setStep(2)}>Tiep theo</button>
+                            <button className="secondary" onClick={() => setStep(1)}>Quay lại</button>
+                            <button className="primary" disabled={!isStep1Done} onClick={() => setStep(2)}>Tiếp theo</button>
                         </div>
                     </section>
                 )}
 
                 {step === 2 && (
                     <section className="card">
-                        <h2>Tai tai lieu</h2>
-                        <p>Vui long tai len cac tai lieu can thiet.</p>
+                        <h2>Tải tài liệu</h2>
+                        <p>Vui lòng tải lên các tài liệu cần thiết.</p>
                         <div className="docs">
                             {REQUIRED_DOCS.map((doc) => {
                                 const file = files.find((f) => f.docName === doc);
@@ -152,13 +152,13 @@ export default function StudentPortalPage({ user, onLogout }) {
                                         <div className="doc-title">{doc}</div>
                                         {!file ? (
                                             <label className="upload">
-                                                Chon tep tin
+                                                Chọn tệp tin
                                                 <input type="file" onChange={(e) => handleFileUpload(e, doc)} />
                                             </label>
                                         ) : (
                                             <div className="uploaded">
                                                 <span>{file.fileName} ({file.size})</span>
-                                                <button onClick={() => removeFile(doc)}>Xoa</button>
+                                                <button onClick={() => removeFile(doc)}>Xóa</button>
                                             </div>
                                         )}
                                     </div>
@@ -166,33 +166,33 @@ export default function StudentPortalPage({ user, onLogout }) {
                             })}
                         </div>
                         <div className="actions">
-                            <button className="secondary" onClick={() => setStep(1)}>Quay lai</button>
-                            <button className="primary" disabled={!isStep2Done} onClick={() => setStep(3)}>Tiep theo</button>
+                            <button className="secondary" onClick={() => setStep(1)}>Quay lại</button>
+                            <button className="primary" disabled={!isStep2Done} onClick={() => setStep(3)}>Tiếp theo</button>
                         </div>
                     </section>
                 )}
 
                 {step === 3 && (
                     <section className="card">
-                        <h2>Kiem tra lai</h2>
-                        <p>Rao soat toan bo thong tin truoc khi gui.</p>
+                        <h2>Kiểm tra lại</h2>
+                        <p>Rà sóat tòan bộ thông tin trước khi gửi.</p>
                         <div className="review">
-                            <div><strong>Ho va ten:</strong> {profile.firstName} {profile.lastName}</div>
+                            <div><strong>Họ va tên:</strong> {profile.firstName} {profile.lastName}</div>
                             <div><strong>Email:</strong> {profile.email}</div>
-                            <div><strong>So dien thoai:</strong> {profile.phone}</div>
-                            <div><strong>Ngay sinh:</strong> {profile.birthday}</div>
-                            <div><strong>Quoc tich:</strong> {profile.nationality}</div>
-                            <div><strong>Dia chi:</strong> {profile.address}</div>
+                            <div><strong>Số điện thọai:</strong> {profile.phone}</div>
+                            <div><strong>Ngày sinh:</strong> {profile.birthday}</div>
+                            <div><strong>Quốc tịch:</strong> {profile.nationality}</div>
+                            <div><strong>Địa chỉ:</strong> {profile.address}</div>
                         </div>
-                        <h3>Danh sach tai lieu</h3>
+                        <h3>Danh sách tài liệu</h3>
                         <div className="review-files">
                             {files.map((f) => (
                                 <div key={f.docName}>{f.docName}: {f.fileName} ({f.size})</div>
                             ))}
                         </div>
                         <div className="actions">
-                            <button className="secondary" onClick={() => setStep(2)}>Quay lai</button>
-                            <button className="primary">Gui ho so</button>
+                            <button className="secondary" onClick={() => setStep(2)}>Quay lại</button>
+                            <button className="primary">Gửi hồ sơ</button>
                         </div>
                     </section>
                 )}

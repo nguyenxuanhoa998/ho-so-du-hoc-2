@@ -26,7 +26,7 @@ export default function LoginPage({ onLoginSuccess }) {
         resetFeedback();
 
         if (!email || !password || (mode === "register" && !fullName)) {
-            setError("Vui long nhap day du thong tin.");
+            setError("Vui lòng nhập đầy đủ thông tin.");
             return;
         }
 
@@ -46,19 +46,20 @@ export default function LoginPage({ onLoginSuccess }) {
 
             const data = await response.json();
             if (!response.ok) {
-                setError(data.message || "Thao tac that bai.");
+                setError(data.message || "Thao tác thất bại.");
                 return;
             }
 
-            setMessage(data.message || "Thao tac thanh cong.");
+            setMessage(data.message || "Thao tác thành công.");
             if (mode === "register") {
                 setMode("login");
                 setPassword("");
+                setEmail("");
             } else if (data.user && onLoginSuccess) {
                 onLoginSuccess(data.user);
             }
         } catch (apiErr) {
-            setError("Khong the ket noi server. Vui long kiem tra backend.");
+            setError("Không thể kết nối server. Vui lòng kiểm tra backend.");
         } finally {
             setLoading(false);
         }
@@ -68,13 +69,13 @@ export default function LoginPage({ onLoginSuccess }) {
         <div className="page">
             <nav>
                 <div className="nav-brand">
-                    <div className="nav-logo">🌍</div>
+                    <div className="nav-logo">TS</div>
                     <span className="nav-brand-text">Taiwan Study Abroad</span>
                 </div>
 
                 <div className="nav-links">
-                    <a href="#">Trung tam tro giup</a>
-                    <a href="#">Lien he ho tro</a>
+                    <a href="#">Trung tâm trợ giúp</a>
+                    <a href="#">Liên hệ hỗ trợ</a>
                 </div>
             </nav>
 
@@ -82,12 +83,14 @@ export default function LoginPage({ onLoginSuccess }) {
                 <div className="card">
                     <div className="card-head">
                         <h1 className="card-title">
-                            {mode === "login" ? "Chao mung ban quay lai" : "Tao tai khoan moi"}
+                            {mode === "login" ? "Chào mừng bạn quay lại" : "Tạo tài khỏan mới"}
                         </h1>
                         <p className="card-subtitle">
                             {mode === "login"
-                                ? "Vui long nhap thong tin chi tiet de dang nhap."
-                                : "Nhap thong tin de tao tai khoan va bat dau dang nhap."}
+                                ? "Vui lòng nhập thông tin chi tiết để đăng nhập."
+                                : role === "student"
+                                    ? "Nhập thông tin để tạo tài khoản. Tài khoản sinh viên sẽ cần được phê duyệt trước khi sử dụng."
+                                    : "Nhập thông tin để tạo tài khoản. Tài khoản quản trị sẽ cần được phê duyệt trước khi sử dụng."}
                         </p>
                     </div>
 
@@ -96,21 +99,27 @@ export default function LoginPage({ onLoginSuccess }) {
                             className={`tab ${role === "student" ? "tab--active" : ""}`}
                             onClick={() => setRole("student")}
                         >
-                            Sinh vien
+                            Sinh viên
                         </button>
 
                         <button
                             className={`tab ${role === "admin" ? "tab--active" : ""}`}
                             onClick={() => setRole("admin")}
                         >
-                            Quan tri vien
+                            Quản trị viên
                         </button>
                     </div>
+
+                    {mode === "register" && (
+                        <p className="auth-message" style={{ marginTop: 12 }}>
+                            Tài khoản mới sẽ ở trạng thái chờ phê duyệt. Nếu đăng ký vai trò quản trị viên, bạn cần được cấp quyền trước khi đăng nhập.
+                        </p>
+                    )}
 
                     <div className="form">
                         {mode === "register" && (
                             <div className="field">
-                                <label>Ho va ten</label>
+                                <label>Họ va tên</label>
                                 <input
                                     type="text"
                                     value={fullName}
@@ -135,12 +144,12 @@ export default function LoginPage({ onLoginSuccess }) {
                         </div>
 
                         <div className="field">
-                            <label>Mat khau</label>
+                            <label>Mật khẩu</label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Nhap mat khau cua ban"
+                                placeholder="Nhạp mật khẩu của bạn"
                             />
                         </div>
 
@@ -148,11 +157,11 @@ export default function LoginPage({ onLoginSuccess }) {
                             <div className="extras">
                                 <label className="checkbox-wrap">
                                     <input type="checkbox" />
-                                    <span>Ghi nho toi</span>
+                                    <span>Ghi nhớ tôi</span>
                                 </label>
 
                                 <a href="#" className="link">
-                                    Quen mat khau?
+                                    Quên mật khẩu?
                                 </a>
                             </div>
                         )}
@@ -163,38 +172,40 @@ export default function LoginPage({ onLoginSuccess }) {
                         <button className="btn-primary" onClick={handleSubmit} disabled={loading}>
                             {loading
                                 ? mode === "login"
-                                    ? "Dang dang nhap..."
-                                    : "Dang tao tai khoan..."
+                                    ? "Đang đăng nhập..."
+                                    : "Đang tạo tài khỏan..."
                                 : mode === "login"
-                                  ? "Dang nhap"
-                                  : "Tao tai khoan"}
+                                    ? "Đăng nhập"
+                                    : "Tạo tài khoản"}
                         </button>
                     </div>
 
                     <div className="card-foot">
                         {mode === "login" ? (
                             <p className="register-line">
-                                Ban chua co tai khoan?
+                                Bạn chưa có tài khoản?
                                 <button className="link link-button" onClick={() => switchMode("register")}>
-                                    Dang ky ngay
+                                    Đăng ký ngay
                                 </button>
                             </p>
                         ) : (
                             <p className="register-line">
-                                Ban da co tai khoan?
+                                Bạn đã có tài khoản?
                                 <button className="link link-button" onClick={() => switchMode("login")}>
-                                    Dang nhap
+                                    Đăng nhập
                                 </button>
                             </p>
                         )}
 
                         <div className="divider"></div>
-                        <div className="ssl-badge">🔒 Ma hoa bao mat SSL</div>
+                        <div className="ssl-badge">Mã hóa bảo mật SSL</div>
                     </div>
                 </div>
             </main>
 
-            <footer>© 2026 Study Abroad Systems Inc.</footer>
+            <footer>(c) 2026 Study Abroad Systems Inc.</footer>
         </div>
     );
 }
+
+

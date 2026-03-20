@@ -1,4 +1,4 @@
-export const ENROLLMENT_LOGIC = {
+﻿export const ENROLLMENT_LOGIC = {
   "Bậc Đại học": ["Đang là học sinh lớp 12", "Đã tốt nghiệp THPT"],
   "Bậc Thạc sĩ": ["Sinh viên năm cuối", "Sinh viên đã tốt nghiệp"],
   "Bậc chuyển tiếp": [], 
