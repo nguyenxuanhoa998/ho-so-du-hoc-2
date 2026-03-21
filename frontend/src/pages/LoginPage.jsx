@@ -83,7 +83,7 @@ export default function LoginPage({ onLoginSuccess }) {
                 <div className="card">
                     <div className="card-head">
                         <h1 className="card-title">
-                            {mode === "login" ? "Chào mừng bạn quay lại" : "Tạo tài khỏan mới"}
+                            {mode === "login" ? "Chào mừng bạn quay lại" : "Tạo tài khoản mới"}
                         </h1>
                         <p className="card-subtitle">
                             {mode === "login"
@@ -149,7 +149,7 @@ export default function LoginPage({ onLoginSuccess }) {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Nhạp mật khẩu của bạn"
+                                placeholder="Nhập mật khẩu của bạn"
                             />
                         </div>
 
