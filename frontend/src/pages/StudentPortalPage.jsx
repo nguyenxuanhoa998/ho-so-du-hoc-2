@@ -175,11 +175,11 @@ export default function StudentPortalPage({ user, onLogout }) {
                 {step === 3 && (
                     <section className="card">
                         <h2>Kiểm tra lại</h2>
-                        <p>Rà sóat tòan bộ thông tin trước khi gửi.</p>
+                        <p>Rà soát toàn bộ thông tin trước khi gửi.</p>
                         <div className="review">
-                            <div><strong>Họ va tên:</strong> {profile.firstName} {profile.lastName}</div>
+                            <div><strong>Họ và tên:</strong> {profile.firstName} {profile.lastName}</div>
                             <div><strong>Email:</strong> {profile.email}</div>
-                            <div><strong>Số điện thọai:</strong> {profile.phone}</div>
+                            <div><strong>Số điện thoại:</strong> {profile.phone}</div>
                             <div><strong>Ngày sinh:</strong> {profile.birthday}</div>
                             <div><strong>Quốc tịch:</strong> {profile.nationality}</div>
                             <div><strong>Địa chỉ:</strong> {profile.address}</div>
