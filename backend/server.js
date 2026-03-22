@@ -234,6 +234,7 @@ db.connect((err) => {
             assigned_staff_name VARCHAR(255) DEFAULT '',
             address VARCHAR(255) DEFAULT '',
             is_completed TINYINT(1) NOT NULL DEFAULT 0,
+            application_status VARCHAR(50) DEFAULT 'received',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT fk_profile_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -256,6 +257,16 @@ db.connect((err) => {
                 console.error('Ensure assigned_staff_name column error:', alterErr.message);
             }
         });
+
+        const ensureApplicationStatusColumnSql = `
+            ALTER TABLE student_profiles
+            ADD COLUMN application_status VARCHAR(50) DEFAULT 'received'
+        `;
+        db.query(ensureApplicationStatusColumnSql, (alterErr) => {
+            if (alterErr && alterErr.code !== 'ER_DUP_FIELDNAME') {
+                console.error('Ensure application_status column error:', alterErr.message);
+            }
+        });
     });
 
     const ensureProfileDocsTableSql = `
@@ -265,6 +276,8 @@ db.connect((err) => {
             doc_name VARCHAR(255) NOT NULL,
             file_name VARCHAR(255) DEFAULT '',
             file_size VARCHAR(50) DEFAULT '',
+            status VARCHAR(50) DEFAULT 'pending',
+            admin_feedback TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             CONSTRAINT fk_profile_docs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -277,6 +290,17 @@ db.connect((err) => {
             return;
         }
         console.log('Student profile documents table is ready.');
+
+        const ensureDocsStatusColumnSql = `
+            ALTER TABLE student_profile_documents
+            ADD COLUMN status VARCHAR(50) DEFAULT 'pending',
+            ADD COLUMN admin_feedback TEXT
+        `;
+        db.query(ensureDocsStatusColumnSql, (alterErr) => {
+            if (alterErr && alterErr.code !== 'ER_DUP_FIELDNAME') {
+                console.error('Ensure docs status columns error:', alterErr.message);
+            }
+        });
     });
 
     (async () => {
@@ -299,7 +323,7 @@ app.get('/api/student/profile/:userId', (req, res) => {
 
         const profile = profileRows[0] || null;
         const sqlDocs = `
-            SELECT doc_name, file_name, file_size, created_at, updated_at
+            SELECT doc_name, file_name, file_size, status, admin_feedback, created_at, updated_at
             FROM student_profile_documents
             WHERE user_id = ?
             ORDER BY id ASC
@@ -383,39 +407,66 @@ app.post('/api/student/profile', (req, res) => {
     });
 });
 
-app.post('/api/student/documents', (req, res) => {
+app.post('/api/student/documents', async (req, res) => {
     const { userId, documents = [] } = req.body;
     if (!userId) return res.status(400).json({ message: 'Thieu userId.' });
 
-    const sqlDelete = 'DELETE FROM student_profile_documents WHERE user_id = ?';
-    db.query(sqlDelete, [userId], (delErr) => {
-        if (delErr) return res.status(500).json({ message: 'Loi xoa tai lieu cu.', error: delErr.message });
+    try {
+        const existingDocs = await dbQuery('SELECT doc_name, file_name FROM student_profile_documents WHERE user_id = ?', [userId]);
+        const existingNames = existingDocs.map(d => d.doc_name);
 
-        if (!documents.length) return res.json({ message: 'Da cap nhat tai lieu (rong).' });
+        for (const doc of documents) {
+            // Find if existing doc has the same actual file to skip resetting status,
+            // However, we want to reset 'status' to 'pending' if the user updates the document. 
+            // In our simple case, if the user sent it, they might have re-uploaded.
+            // But if they didn't re-upload, we don't want to reset status to pending.
+            const existingDoc = existingDocs.find(d => d.doc_name === doc.docName);
+            const isFileChanged = existingDoc ? existingDoc.file_name !== doc.fileName : true;
 
-        const values = documents.map((doc) => [
-            userId,
-            doc.docName || '',
-            doc.fileName || '',
-            doc.fileSize || ''
-        ]);
-
-        const sqlInsert = 'INSERT INTO student_profile_documents (user_id, doc_name, file_name, file_size) VALUES ?';
-        db.query(sqlInsert, [values], (insErr) => {
-            if (insErr) return res.status(500).json({ message: 'Loi luu tai lieu.', error: insErr.message });
-            return res.json({ message: 'Da luu danh sach tai lieu.' });
-        });
-    });
+            if (existingNames.includes(doc.docName)) {
+                if (isFileChanged) {
+                    await dbQuery(
+                        'UPDATE student_profile_documents SET file_name = ?, file_size = ?, status = "pending", admin_feedback = NULL WHERE user_id = ? AND doc_name = ?',
+                        [doc.fileName || '', doc.fileSize || '', userId, doc.docName]
+                    );
+                } else {
+                    await dbQuery(
+                        'UPDATE student_profile_documents SET file_name = ?, file_size = ? WHERE user_id = ? AND doc_name = ?',
+                        [doc.fileName || '', doc.fileSize || '', userId, doc.docName]
+                    );
+                }
+            } else {
+                await dbQuery(
+                    'INSERT INTO student_profile_documents (user_id, doc_name, file_name, file_size, status) VALUES (?, ?, ?, ?, "pending")',
+                    [userId, doc.docName || '', doc.fileName || '', doc.fileSize || '']
+                );
+            }
+        }
+        res.json({ message: 'Da luu danh sach tai lieu.' });
+    } catch (err) {
+        res.status(500).json({ message: 'Loi luu tai lieu.', error: err.message });
+    }
 });
 
 app.post('/api/student/complete', (req, res) => {
     const { userId, isCompleted = 1 } = req.body;
     if (!userId) return res.status(400).json({ message: 'Thieu userId.' });
 
-    const sql = 'UPDATE student_profiles SET is_completed = ? WHERE user_id = ?';
+    const sql = 'UPDATE student_profiles SET is_completed = ?, application_status = "processing" WHERE user_id = ?';
     db.query(sql, [isCompleted ? 1 : 0, userId], (err) => {
         if (err) return res.status(500).json({ message: 'Loi cap nhat trang thai ho so.', error: err.message });
         return res.json({ message: 'Da cap nhat trang thai hoan tat.' });
+    });
+});
+
+app.post('/api/student/resubmit', (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'Thieu userId.' });
+
+    const sql = 'UPDATE student_profiles SET application_status = "processing" WHERE user_id = ?';
+    db.query(sql, [userId], (err) => {
+        if (err) return res.status(500).json({ message: 'Loi cap nhat trang thai ho so.', error: err.message });
+        return res.json({ message: 'Da nop lai ho so thanh cong. Ho so hien dang duoc xu ly.' });
     });
 });
 
@@ -753,6 +804,66 @@ app.post('/api/admin/delete-student', async (req, res) => {
         return res.json({ message: 'Da xoa tai khoan sinh vien.' });
     } catch (err) {
         return res.status(500).json({ message: 'Loi xoa tai khoan sinh vien.', error: err.message });
+    }
+});
+
+app.post('/api/admin/document/approve', async (req, res) => {
+    const { userId, docName } = req.body;
+    if (!userId || !docName) return res.status(400).json({ message: 'Thiếu thông tin.' });
+
+    try {
+        await dbQuery(
+            "UPDATE student_profile_documents SET status = 'approved', admin_feedback = '' WHERE user_id = ? AND doc_name = ?",
+            [userId, docName]
+        );
+        res.json({ message: 'Đã phê duyệt tài liệu.' });
+    } catch (e) {
+        res.status(500).json({ message: 'Lỗi phê duyệt.', error: e.message });
+    }
+});
+
+app.post('/api/admin/document/reject', async (req, res) => {
+    const { userId, docName, feedback } = req.body;
+    if (!userId || !docName || !feedback) return res.status(400).json({ message: 'Thiếu thông tin hoặc lý do từ chối.' });
+
+    try {
+        await dbQuery(
+            "UPDATE student_profile_documents SET status = 'rejected', admin_feedback = ? WHERE user_id = ? AND doc_name = ?",
+            [feedback, userId, docName]
+        );
+        res.json({ message: 'Đã từ chối tài liệu.' });
+    } catch (e) {
+        res.status(500).json({ message: 'Lỗi từ chối.', error: e.message });
+    }
+});
+
+app.post('/api/admin/profile/approve-all', async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'Thiếu user ID.' });
+
+    try {
+        const docs = await dbQuery("SELECT doc_name, status FROM student_profile_documents WHERE user_id = ?", [userId]);
+        const rejectedOrPending = docs.filter(d => d.status !== 'approved');
+        if (rejectedOrPending.length > 0) {
+            return res.status(400).json({ message: 'Không thể phê duyệt toàn bộ vì có tài liệu chưa được duyệt hoặc bị từ chối.' });
+        }
+
+        await dbQuery("UPDATE student_profiles SET application_status = 'completed', is_completed = 1 WHERE user_id = ?", [userId]);
+        res.json({ message: 'Hồ sơ đã được phê duyệt thành công.' });
+    } catch (e) {
+        res.status(500).json({ message: 'Lỗi phê duyệt hồ sơ.', error: e.message });
+    }
+});
+
+app.post('/api/admin/profile/request-fix', async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'Thiếu user ID.' });
+
+    try {
+        await dbQuery("UPDATE student_profiles SET application_status = 'fix_required' WHERE user_id = ?", [userId]);
+        res.json({ message: 'Đã yêu cầu sinh viên bổ sung hồ sơ.' });
+    } catch (e) {
+        res.status(500).json({ message: 'Lỗi yêu cầu bổ sung.', error: e.message });
     }
 });
 

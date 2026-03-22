@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   UserCircle,
@@ -234,6 +234,7 @@ export default function Step1Form({ user, onLogout }) {
   const [isStep1Locked, setIsStep1Locked] = useState(false);
   const [allowStep1Edit, setAllowStep1Edit] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState("received");
   const [sortOption, setSortOption] = useState("default");
 
   const handleChange = (e) => {
@@ -281,13 +282,25 @@ export default function Step1Form({ user, onLogout }) {
               size: d.file_size || "",
               sizeBytes: parseSizeToBytes(d.file_size || ""),
               uploadedAt: d.updated_at || d.created_at || "",
+              status: d.status || "pending",
+              adminFeedback: d.admin_feedback || "",
             };
           });
           setUploadedDocs(docsMap);
 
-          if (data.profile.is_completed === 1) {
+          if (data.profile.application_status) {
+            setApplicationStatus(data.profile.application_status);
+            if (data.profile.application_status === 'fix_required') {
+              // Stay in fix required view
+              return;
+            }
+          }
+
+          if (data.profile.is_completed === 1 && data.profile.application_status !== 'fix_required') {
             setIsCompleted(true);
             setCurrentStep(3);
+          } else if (data.profile.application_status === 'fix_required') {
+            setCurrentStep(0); // We'll render custom view
           } else if ((data.documents || []).length > 0) {
             setCurrentStep(2);
           } else {
@@ -394,6 +407,8 @@ export default function Step1Form({ user, onLogout }) {
           size,
           sizeBytes,
           uploadedAt,
+          status: 'pending',
+          adminFeedback: '',
         },
       }));
     } catch (err) {
@@ -580,6 +595,34 @@ export default function Step1Form({ user, onLogout }) {
       alert("Không thể hòan tất hồ sơ. Thử lại.");
     } finally {
       setIsFinalizing(false);
+    }
+  };
+
+  const handleResubmit = async () => {
+    if (!user?.id) return;
+    try {
+      const documents = requiredDocs.map((doc) => ({
+        docName: doc,
+        fileName: uploadedDocs[doc]?.url || uploadedDocs[doc]?.name || "",
+        fileSize: uploadedDocs[doc]?.size || "",
+      }));
+      // Save documents first
+      await fetch(`${API_BASE}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, documents }),
+      });
+      // Resubmit profile
+      const res = await fetch(`${API_BASE}/resubmit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id }),
+      });
+      if (!res.ok) throw new Error("Loi gui lại hồ sơ.");
+      alert("Đã nộp lại hồ sơ thành công! Hồ sơ hiện đang được xử lý.");
+      setApplicationStatus("processing");
+    } catch (e) {
+      alert("Lỗi khi nộp lại hồ sơ: " + e.message);
     }
   };
 
@@ -796,6 +839,85 @@ export default function Step1Form({ user, onLogout }) {
           height: 2px;
           background: #e2e8f0;
           margin: 0 12px 20px;
+        }
+
+        .fix-required-banner {
+          background: #fffcf0;
+          border: 1px solid #fde047;
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+        }
+        .fix-required-banner h4 {
+          margin: 0 0 4px;
+          color: #a16207;
+        }
+        .fix-required-banner p {
+          margin: 0;
+          color: #a16207;
+          font-size: 14px;
+        }
+        .doc-card-rejected {
+          border: 1px solid #ef4444 !important;
+          background: #fef2f2 !important;
+        }
+        .doc-card-approved {
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+        .admin-feedback {
+          background: #fee2e2;
+          color: #b91c1c;
+          padding: 12px;
+          border-radius: 8px;
+          margin-top: 12px;
+          font-size: 13px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .status-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .status-approved { color: #15803d; }
+        .status-rejected { color: #b91c1c; }
+        .status-badge-custom {
+          background: #fee2e2;
+          color: #b91c1c;
+          padding: 4px 12px;
+          border-radius: 16px;
+          font-size: 12px;
+          font-weight: 600;
+          margin-left: 12px;
+        }
+        .section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 24px;
+          border-bottom: 1px solid #e2e8f0;
+          background: #fafafa;
+        }
+        .btn-resubmit {
+          background: #2563eb;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-top: 24px;
+          float: right;
+        }
+        .btn-resubmit:disabled {
+          background: #93c5fd;
+          cursor: not-allowed;
         }
 
         .form-container {
@@ -1168,6 +1290,111 @@ export default function Step1Form({ user, onLogout }) {
               </div>
             </section>
           )}
+
+          {!loadingProfile && currentStep === 0 && applicationStatus === 'fix_required' && (
+            <section className="form-container">
+              <div className="section-header">
+                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Chỉnh sửa hồ sơ nhập học</h2>
+                <span className="status-badge-custom">🕒 Cần sửa đổi</span>
+              </div>
+              <div style={{ padding: 24 }}>
+                <div className="fix-required-banner">
+                  <h4>⚠️ Hồ sơ của bạn cần được cập nhật</h4>
+                  <p>Vui lòng xem các ghi chú màu đỏ bên dưới từ quản trị viên để hoàn thiện hồ sơ. Các thông tin khác đã được khóa sau khi xác minh.</p>
+                </div>
+
+                <div className="form-container" style={{ marginBottom: 24, border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+                  <div className="section-header" style={{ background: '#fff' }}>
+                    <h3 style={{ margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <UserCircle size={20} color="#2563eb" /> Thông tin cá nhân
+                    </h3>
+                    <span style={{ fontSize: 13, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Check size={14} /> Đã khóa
+                    </span>
+                  </div>
+                  <div className="grid-inputs" style={{ pointerEvents: 'none', opacity: 0.7 }}>
+                    <div className="input-box"><label>Họ và tên</label><input value={fullName} readOnly /></div>
+                    <div className="input-box"><label>Ngày sinh</label><input value={formData.birthday} readOnly /></div>
+                    <div className="input-box"><label>Số điện thoại</label><input value={formData.phone} readOnly /></div>
+                    <div className="input-box"><label>Email</label><input value={formData.email} readOnly /></div>
+                  </div>
+                </div>
+
+                <div className="form-container" style={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+                  <div className="section-header" style={{ background: '#fff' }}>
+                    <h3 style={{ margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FolderOpen size={20} color="#2563eb" /> Tài liệu đính kèm
+                    </h3>
+                  </div>
+                  <div className="upload-list" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {displayDocs.map((item) => {
+                      const docName = item.docName;
+                      const uploaded = item.uploaded;
+                      const isUploaded = item.isUploaded;
+                      const status = uploaded?.status || 'pending';
+                      const feedback = uploaded?.adminFeedback;
+                      const isUploading = uploadingDocs[docName];
+
+                      let cardClass = '';
+                      let badge = null;
+
+                      if (status === 'approved') {
+                        cardClass = 'doc-card-approved';
+                        badge = <span className="status-badge status-approved"><Check size={14} /> Đã xác minh</span>;
+                      } else if (status === 'rejected') {
+                        cardClass = 'doc-card-rejected';
+                        badge = <span className="status-badge status-rejected">• Cần tải lại</span>;
+                      } else {
+                        badge = <span className="status-badge status-pending">• Đang chờ duyệt</span>;
+                      }
+
+                      return (
+                        <div className={`doc-card ${cardClass} ${isUploaded ? 'done' : ''}`} key={docName} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="doc-left" style={{ flexDirection: 'row', alignItems: 'center', display: 'flex', gap: 12 }}>
+                              <div className="upload-icon" style={{ background: status === 'rejected' ? '#fee2e2' : status === 'approved' ? '#dcfce7' : '#e6eeff', color: status === 'rejected' ? '#ef4444' : status === 'approved' ? '#16a34a' : '#2563eb' }}>
+                                <FileText size={20} />
+                              </div>
+                              <div>
+                                <div className="upload-title" style={{ fontSize: 16 }}>{docName}</div>
+                                {isUploaded && <div className="upload-sub" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{uploaded.name} {badge}</div>}
+                                {!isUploaded && <div className="upload-sub" style={{ color: '#ef4444' }}>Chưa tải lên</div>}
+                              </div>
+                            </div>
+
+                            {status === 'rejected' || !isUploaded ? (
+                              <label className="btn-resubmit" style={{ marginTop: 0, padding: '8px 16px', borderRadius: 20 }}>
+                                {isUploading ? 'Đang tải...' : '☁ Tải lên lại'}
+                                <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} disabled={isUploading} />
+                              </label>
+                            ) : (
+                              <div style={{ color: status === 'approved' ? '#16a34a' : '#94a3b8' }}><Check size={20} /></div>
+                            )}
+                          </div>
+
+                          {status === 'rejected' && feedback && (
+                            <div className="admin-feedback">
+                              <span style={{ fontWeight: 'bold', color: '#b91c1c' }}>Phản hồi của Admin:</span> {feedback}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  className="btn-resubmit"
+                  onClick={handleResubmit}
+                  disabled={displayDocs.some(d => !d.isUploaded || d.uploaded?.status === 'rejected')}
+                >
+                  Nộp lại hồ sơ
+                </button>
+                <div style={{ clear: 'both' }}></div>
+              </div>
+            </section>
+          )}
+
           {!loadingProfile && currentStep === 1 && (
             <section className="form-container">
               <div className="form-title">
@@ -1305,10 +1532,21 @@ export default function Step1Form({ user, onLogout }) {
                   const fileType = item.fileType;
                   const uploadedAt = item.uploadedAt;
                   const isUploading = uploadingDocs[docName];
+                  const status = uploaded?.status || 'pending';
+
+                  let statusBadge = null;
+                  if (isUploaded) {
+                    if (status === 'approved') statusBadge = <span className="status-badge status-approved" style={{ fontSize: 11, padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} /> Đã duyệt</span>;
+                    else if (status === 'rejected') statusBadge = <span className="status-badge" style={{ fontSize: 11, padding: '2px 6px', background: '#fee2e2', color: '#ef4444', borderRadius: 12 }}>Cần bổ sung</span>;
+                    else statusBadge = <span className="status-badge status-pending" style={{ fontSize: 11, padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>Chờ duyệt</span>;
+                  }
+
                   return (
                     <div className={`doc-card ${isUploaded ? "done" : ""}`} key={docName}>
                       <div className="doc-left">
-                        <div className="upload-title">{index + 1}. {docName}</div>
+                        <div className="upload-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {index + 1}. {docName} {statusBadge}
+                        </div>
                         <div className="upload-sub">Tài liệu theo nhóm đã chọn. {!isUploaded ? "Trạng thái: Thiếu" : "Trạng thái: Đã nộp"}</div>
                       </div>
                       {isUploaded ? (
@@ -1322,12 +1560,16 @@ export default function Step1Form({ user, onLogout }) {
                             <a className="btn-download" href={uploaded.url} target="_blank" rel="noreferrer">Xem</a>
                           )}
                           <div className="file-actions-col">
-                            <label className="btn-edit-doc">
-                              <Pencil size={14} />
-                              Chỉnh sửa
-                              <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
-                            </label>
-                            <button type="button" className="btn-delete-doc" onClick={() => handleDeleteDoc(docName)}>Xóa</button>
+                            {status !== 'approved' && (
+                              <label className="btn-edit-doc">
+                                <Pencil size={14} />
+                                Chỉnh sửa
+                                <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
+                              </label>
+                            )}
+                            {status !== 'approved' && (
+                              <button type="button" className="btn-delete-doc" onClick={() => handleDeleteDoc(docName)}>Xóa</button>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -1385,8 +1627,15 @@ export default function Step1Form({ user, onLogout }) {
                   <div className="doc-left">
                     <div className="upload-title">Danh sách tài liệu</div>
                     {requiredDocs.map((doc) => (
-                      <div className="upload-sub" key={doc}>
-                        {doc}: {hasUploadedDoc(uploadedDocs[doc]) ? uploadedDocs[doc]?.name : "THIEU"}
+                      <div className="upload-sub" key={doc} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {doc}: {hasUploadedDoc(uploadedDocs[doc]) ? (
+                          <>
+                            {uploadedDocs[doc]?.name}
+                            {uploadedDocs[doc]?.status === 'approved' && <span style={{ color: '#16a34a', fontSize: 12, display: 'flex', alignItems: 'center' }}><Check size={12} /> Đã duyệt</span>}
+                            {uploadedDocs[doc]?.status === 'rejected' && <span style={{ color: '#ef4444', fontSize: 12 }}>❌ Cần bổ sung</span>}
+                            {uploadedDocs[doc]?.status === 'pending' && <span style={{ color: '#d97706', fontSize: 12 }}>⏳ Chờ duyệt</span>}
+                          </>
+                        ) : "THIẾU"}
                       </div>
                     ))}
                   </div>

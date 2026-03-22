@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import SecurityCenterPage from "./SecurityCenterPage.jsx";
+import AdminStudentDetail from "./AdminStudentDetail.jsx";
 
 const API_BASE = "http://localhost:5000";
 
@@ -678,53 +679,16 @@ export default function AdminPortalPage({ user, onLogout, onLoginAsStudent }) {
             )}
 
             {showDetail && selectedStudent && (
-              <section className="ap-detail">
-                <div className="ap-detail-head">
-                  <div className="ap-detail-title">Thông tin chi tiết hồ sơ</div>
-                  <button
-                    className="ap-back-btn"
-                    onClick={() => {
-                      setShowDetail(false);
-                      setSelectedStudent(null);
-                      setDocuments([]);
-                    }}
-                  >
-                    Quay lại
-                  </button>
-                </div>
-                <div className="ap-detail-grid">
-                  <div>Họ và tên: {selectedFullName || selectedStudent.fullName}</div>
-                  <div>Email: {selectedStudent.email || "-"}</div>
-                  <div>Số điện thọai: {selectedStudent.phone || "-"}</div>
-                  <div>Ngày sinh: {selectedStudent.birthday || "-"}</div>
-                  <div>Quốc tịch: {selectedStudent.nationality || "-"}</div>
-                  <div>Địa chỉ: {selectedStudent.address || "-"}</div>
-                  <div>Bằng cấp hiện tại: {selectedStudent.currentLevel || "-"}</div>
-                  <div>Bằng cấp mong muốn: {selectedStudent.targetLabel || "-"}</div>
-                  <div>Nhân viên phụ trách: {selectedStudent.assignedStaffName || "Chưa có thông tin"}</div>
-                </div>
-                <div className="ap-detail-title">Danh sách tài liệu</div>
-                <div className="ap-doc-list">
-                  {documents.length ? documents.map((doc, idx) => (
-                    <div className="ap-doc-item" key={`${doc.doc_name}-${idx}`}>
-                      <div className="ap-doc-left">
-                        <div className="ap-doc-title">
-                          {doc.doc_name} - {doc.file_name ? (
-                            <a className="ap-doc-view" href={doc.file_name} target="_blank" rel="noreferrer">Xem</a>
-                          ) : "Chưa nộp"}
-                        </div>
-                        {doc.file_name && (
-                          <div className="ap-doc-file">{extractFileNameFromUrl(doc.file_name)}</div>
-                        )}
-                        {doc.file_name && (
-                          <div className="ap-doc-meta">Dung lượng: {formatBytes(doc.file_size)} | Lọai: {getFileExtension(doc.file_name) || "-"} | Ngày: {formatDateTime(doc.created_at)}</div>
-                        )}
-                      </div>
-                      <CheckCircle2 size={16} color={doc.file_name ? "#16a34a" : "#94a3b8"} />
-                    </div>
-                  )) : <div className="ap-l2">Chưa có tài liệu.</div>}
-                </div>
-              </section>
+              <AdminStudentDetail
+                student={selectedStudent}
+                initialDocs={documents}
+                onBack={() => {
+                  setShowDetail(false);
+                  setSelectedStudent(null);
+                  setDocuments([]);
+                }}
+                refreshData={() => fetchStudents(searchForm.fullName, searchForm.phone, filters)}
+              />
             )}
           </>
         ) : (
