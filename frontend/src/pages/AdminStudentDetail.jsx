@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronRight, CheckCircle2, AlertTriangle, Clock, Search, Bell, ZoomIn, ZoomOut, Printer, Maximize2, Shield, Edit3 } from "lucide-react";
+import { ChevronRight, CheckCircle2, AlertTriangle, Clock, Search, Bell, ZoomIn, ZoomOut, Printer, Maximize2, Shield, Edit3, ArrowLeft } from "lucide-react";
 
 // Categorization logic
 const CATEGORIES = {
@@ -203,6 +203,24 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           align-items: center;
           gap: 10px;
         }
+        .btn-back {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border: 1px solid #e2e8f0;
+          background: #fff;
+          color: #0f172a;
+          padding: 8px 14px;
+          border-radius: 999px;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          justify-content: center;
+        }
+        .btn-back:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
         .profile-name { font-size: 20px; font-weight: 700; color: #0f172a; }
         .status-badge {
           padding: 4px 10px;
@@ -220,7 +238,12 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           font-size: 13px;
           color: #64748b;
         }
-        .profile-actions { display: flex; gap: 12px; }
+        .profile-actions { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; width: max-content; }
+        .action-top {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
         .btn-contact {
           display: flex;
           align-items: center;
@@ -234,19 +257,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           color: #334155;
           cursor: pointer;
         }
-        .btn-approve-all {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          border-radius: 8px;
-          border: none;
-          background: #f1f5f9;
-          font-size: 14px;
-          font-weight: 600;
-          color: #cbd5e1;
-          pointer-events: none;
-        }
+        .btn-approve-all { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: #f1f5f9; font-size: 14px; font-weight: 600; color: #cbd5e1; pointer-events: none; width: 100%; justify-content: center; }
         .btn-approve-all.active {
           background: #2563eb;
           color: #fff;
@@ -440,9 +451,14 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
             </div>
           </div>
           <div className="profile-actions">
-            <button className="btn-contact"><Edit3 size={16} /> Liên hệ</button>
+            <div className="action-top">
+              <button className="btn-contact"><Edit3 size={16} /> Liên hệ</button>
+              <button className="btn-back" onClick={() => onBack && onBack()}>
+                <ArrowLeft size={20} /> Quay lại
+              </button>
+            </div>
             <button className={`btn-approve-all ${allApproved ? 'active' : ''}`} onClick={handleApproveAll}>
-              <CheckCircle2 size={16} /> Phê duyệt toàn bộ
+              <CheckCircle2 size={16} /> Phê duyệt tòan bộ
             </button>
           </div>
         </div>
@@ -566,3 +582,4 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
     </div>
   );
 }
+
