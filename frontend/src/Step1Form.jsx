@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   UserCircle,
@@ -236,6 +236,22 @@ export default function Step1Form({ user, onLogout }) {
   const [isCompleted, setIsCompleted] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState("received");
   const [sortOption, setSortOption] = useState("default");
+  const [sampleSrc, setSampleSrc] = useState("");
+
+  const getSampleSrc = (name) => {
+    const normalized = (name || "")
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    if (normalized.includes("can cuoc cong dan photo")) return "/cccd-photo.jpg";
+    if (normalized.includes("cccd photo cong chung")) return "/cccd-congchung.jpg";
+    if (normalized.includes("anh the")) return "/anh-the.jpg";
+    if (normalized.includes("ho chieu")) return "/ho-chieu.jpg";
+    if (normalized.includes("bang thpt")) return "/bang-thpt.webp";
+    if (normalized.includes("ban sao giay khai sinh")) return "/giay-khai-sinh.jpg";
+    return "";
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1199,6 +1215,58 @@ export default function Step1Form({ user, onLogout }) {
           align-items: center;
           justify-content: center;
         }
+        .upload-actions {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+        }
+        .btn-sample {
+          height: 42px;
+          min-width: 90px;
+          border: 1px dashed #94a3b8;
+          border-radius: 21px;
+          padding: 0 16px;
+          background: #fff;
+          color: #1e3a8a;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .btn-sample:hover {
+          border-color: #2563eb;
+          color: #2563eb;
+        }
+        .sample-modal {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 50;
+        }
+        .sample-card {
+          background: #fff;
+          border-radius: 16px;
+          padding: 14px;
+          width: min(520px, 92vw);
+          box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+        }
+        .sample-card img {
+          width: 100%;
+          border-radius: 12px;
+          display: block;
+        }
+        .sample-close {
+          margin-top: 10px;
+          width: 100%;
+          height: 40px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          font-weight: 600;
+          cursor: pointer;
+        }
         .upload-note {
           font-size: 12px;
           color: #7b8eab;
@@ -1220,6 +1288,19 @@ export default function Step1Form({ user, onLogout }) {
           border-style: solid;
           border-color: #b7e4c7;
           background: #eafaf1;
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .doc-card.done .doc-left {
+          width: 100%;
+        }
+        .doc-card.done .file-actions {
+          width: 100%;
+          flex-wrap: wrap;
+        }
+        .doc-card.done .file-pill {
+          flex: 1;
+          min-width: 240px;
         }
         .doc-left {
           display: grid;
@@ -1573,10 +1654,17 @@ export default function Step1Form({ user, onLogout }) {
                           </div>
                         </div>
                       ) : (
-                        <label className="upload-btn">
-                          Chọn tệp tin
-                          <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
-                        </label>
+                        <div className="upload-actions">
+                          <label className="upload-btn">
+                            Chọn tệp tin
+                            <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
+                          </label>
+                          {getSampleSrc(docName) && (
+                            <button type="button" className="btn-sample" onClick={() => setSampleSrc(getSampleSrc(docName))}>
+                              Mẫu
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -1652,6 +1740,14 @@ export default function Step1Form({ user, onLogout }) {
             </section>
           )}
         </div>
+        {sampleSrc && (
+          <div className="sample-modal" onClick={() => setSampleSrc("")}>
+            <div className="sample-card" onClick={(e) => e.stopPropagation()}>
+              <img src={sampleSrc} alt="CCCD sample" />
+              <button type="button" className="sample-close" onClick={() => setSampleSrc("")}>Đóng</button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
