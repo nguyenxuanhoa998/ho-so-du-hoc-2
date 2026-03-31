@@ -332,6 +332,8 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
         
         .stat-pending .doc-stat-text { color: #d97706; }
         .stat-pending .doc-icon { background: #fef3c7; color: #d97706; }
+        .stat-missing .doc-stat-text { color: #94a3b8; }
+        .stat-missing .doc-icon { background: #e2e8f0; color: #94a3b8; }
 
         .right-panel {
           background: #fff;
@@ -340,6 +342,9 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           display: flex;
           flex-direction: column;
           overflow: hidden;
+        }
+        .right-panel.scrollable {
+          overflow-y: auto;
         }
         .preview-header {
           display: flex;
@@ -353,7 +358,8 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
         .preview-tools svg { cursor: pointer; }
         
         .preview-body {
-          flex: 1;
+          flex: 1 1 420px;
+          min-height: 420px;
           background: #f1f5f9;
           position: relative;
           display: grid;
@@ -379,6 +385,32 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           padding: 20px 24px;
           border-top: 1px solid #e2e8f0;
           background: #fff;
+        }
+        .personal-card {
+          padding: 24px;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px 24px;
+        }
+        .info-item {
+          padding: 12px 14px;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+        .info-label {
+          font-size: 12px;
+          color: #64748b;
+          margin-bottom: 6px;
+          font-weight: 600;
+        }
+        .info-value {
+          font-size: 14px;
+          color: #0f172a;
+          font-weight: 700;
+          word-break: break-word;
         }
         .review-actions {
           display: flex;
@@ -484,12 +516,17 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                 const statusStr = item.status || 'pending';
                 const isApproved = statusStr === 'approved';
                 const isRejected = statusStr === 'rejected';
+                const hasFile = (item.file_name || '').trim() !== '';
 
                 let icon = <Clock size={14} />;
                 let statusText = "CHỜ DUYỆT";
                 let statusClass = "stat-pending";
 
-                if (isApproved) {
+                if (!hasFile) {
+                  icon = <Clock size={14} />;
+                  statusText = "CHƯA NỘP";
+                  statusClass = "stat-missing";
+                } else if (isApproved) {
                   icon = <CheckCircle2 size={14} />;
                   statusText = "ĐÃ XÁC MINH";
                   statusClass = "stat-approved";
@@ -509,9 +546,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                     }}
                   >
                     <div className="doc-left-side">
-                      <div className="doc-icon">
-                        {isApproved ? <Shield size={18} /> : isRejected ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
-                      </div>
+                      <div className="doc-icon">{icon}</div>
                       <div>
                         <div className="doc-name">{item.doc_name}</div>
                         <div className="doc-stat">
@@ -527,54 +562,106 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           ))}
         </div>
 
-        <div className="right-panel">
-          {activeDocName ? (
-            <>
-              <div className="preview-header">
+        <div className={`right-panel ${activeTab === "Hồ sơ tài liệu" ? "scrollable" : ""}`}>
+          {activeTab === "Thông tin cá nhân" ? (
+            <div className="personal-card">
+              <div className="preview-header" style={{ padding: 0, borderBottom: "none", marginBottom: 16 }}>
                 <div className="preview-title">
-                  <ZoomIn size={16} /> Xem trước: {activeDocName}
-                </div>
-                <div className="preview-tools">
-                  <ZoomIn size={16} /> <ZoomOut size={16} /> <Printer size={16} /> <Maximize2 size={16} />
+                  <Search size={16} /> Thông tin cá nhân
                 </div>
               </div>
+              <div className="info-grid">
+                <div className="info-item">
+                  <div className="info-label">Họ và tên</div>
+                  <div className="info-value">{studentName || "-"}</div>
+                </div>
+                <div className="info-item">
+                  <div className="info-label">Email</div>
+                  <div className="info-value">{student.email || "-"}</div>
+                </div>
+                <div className="info-item">
+                  <div className="info-label">Số điện thoại</div>
+                  <div className="info-value">{student.phone || "-"}</div>
+                </div>
+                <div className="info-item">
+                  <div className="info-label">Ngày sinh</div>
+                  <div className="info-value">{student.birthday || "-"}</div>
+                </div>
+                <div className="info-item">
+                  <div className="info-label">Quốc tịch</div>
+                  <div className="info-value">{student.nationality || "-"}</div>
+                </div>
+                <div className="info-item">
+                  <div className="info-label">Bằng cấp hiện tại</div>
+                  <div className="info-value">{student.currentLevel || "-"}</div>
+                </div>
+                <div className="info-item">
+                  <div className="info-label">Trường mục tiêu</div>
+                  <div className="info-value">{student.targetLabel || "-"}</div>
+                </div>
+                <div className="info-item">
+                  <div className="info-label">Nhân viên phụ trách</div>
+                  <div className="info-value">{student.assignedStaffName || "-"}</div>
+                </div>
+                <div className="info-item" style={{ gridColumn: "1 / -1" }}>
+                  <div className="info-label">Địa chỉ</div>
+                  <div className="info-value">{student.address || "-"}</div>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === "Hồ sơ tài liệu" ? (
+            activeDocName ? (
+              <>
+                <div className="preview-header">
+                  <div className="preview-title">
+                    <ZoomIn size={16} /> Xem trước: {activeDocName}
+                  </div>
+                  <div className="preview-tools">
+                    <ZoomIn size={16} /> <ZoomOut size={16} /> <Printer size={16} /> <Maximize2 size={16} />
+                  </div>
+                </div>
 
-              <div className="preview-body">
-                {activeDoc.file_name ? (
-                  <iframe title="Document Preview" src={activeDoc.file_name} className="doc-iframe" />
-                ) : (
-                  <div style={{ color: '#94a3b8', fontSize: 14 }}>Sinh viên chưa nộp tài liệu này</div>
-                )}
-                <div className="secure-overlay">
-                  <Shield size={32} color="#2563eb" style={{ marginBottom: 12 }} />
-                  <div style={{ fontWeight: 700, fontSize: 16, color: '#0f172a' }}>Chế độ xem an toàn</div>
-                  <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Tài liệu được bảo mật và không thể tải xuống theo quy định hệ thống.</div>
+                <div className="preview-body">
+                  {activeDoc.file_name ? (
+                    <iframe title="Document Preview" src={activeDoc.file_name} className="doc-iframe" />
+                  ) : (
+                    <div style={{ color: '#94a3b8', fontSize: 14 }}>Sinh viên chưa nộp tài liệu này</div>
+                  )}
+                  <div className="secure-overlay">
+                    <Shield size={32} color="#2563eb" style={{ marginBottom: 12 }} />
+                    <div style={{ fontWeight: 700, fontSize: 16, color: '#0f172a' }}>Chế độ xem an toàn</div>
+                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Tài liệu được bảo mật và không thể tải xuống theo quy định hệ thống.</div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="review-footer">
-                <div className="review-actions">
-                  <button className="btn-approve" onClick={handleApproveDoc} disabled={isProcessing || activeDoc.status === 'approved'}>
-                    <CheckCircle2 size={16} /> Phê duyệt tài liệu
-                  </button>
-                  <button className="btn-reject" onClick={handleRejectDoc} disabled={isProcessing}>
-                    <AlertTriangle size={16} /> Từ chối tài liệu
-                  </button>
+                <div className="review-footer">
+                  <div className="review-actions">
+                    <button className="btn-approve" onClick={handleApproveDoc} disabled={isProcessing || activeDoc.status === 'approved'}>
+                      <CheckCircle2 size={16} /> Phê duyệt tài liệu
+                    </button>
+                    <button className="btn-reject" onClick={handleRejectDoc} disabled={isProcessing}>
+                      <AlertTriangle size={16} /> Từ chối tài liệu
+                    </button>
+                  </div>
+                  <div className="feedback-box">
+                    <div className="feedback-label">Phản hồi lý do từ chối (nếu có):</div>
+                    <textarea
+                      className="feedback-input"
+                      placeholder="Nhập lý do từ chối hoặc yêu cầu bổ sung thông tin cho sinh viên..."
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="feedback-box">
-                  <div className="feedback-label">Phản hồi lý do từ chối (nếu có):</div>
-                  <textarea
-                    className="feedback-input"
-                    placeholder="Nhập lý do từ chối hoặc yêu cầu bổ sung thông tin cho sinh viên..."
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                  />
-                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
+                Vui lòng chọn tài liệu bên trái
               </div>
-            </>
+            )
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
-              Vui lòng chọn tài liệu bên trái
+              Nội dung đang được cập nhật
             </div>
           )}
         </div>

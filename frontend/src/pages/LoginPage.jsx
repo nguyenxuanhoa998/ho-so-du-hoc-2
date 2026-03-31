@@ -22,7 +22,10 @@ export default function LoginPage({ onLoginSuccess }) {
         resetFeedback();
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (event) => {
+        if (event?.preventDefault) {
+            event.preventDefault();
+        }
         resetFeedback();
 
         if (!email || !password || (mode === "register" && !fullName)) {
@@ -116,7 +119,7 @@ export default function LoginPage({ onLoginSuccess }) {
                         </p>
                     )}
 
-                    <div className="form">
+                    <form className="form" onSubmit={handleSubmit}>
                         {mode === "register" && (
                             <div className="field">
                                 <label>Họ va tên</label>
@@ -169,7 +172,7 @@ export default function LoginPage({ onLoginSuccess }) {
                         {error && <p className="auth-message auth-error">{error}</p>}
                         {message && <p className="auth-message auth-success">{message}</p>}
 
-                        <button className="btn-primary" onClick={handleSubmit} disabled={loading}>
+                        <button className="btn-primary" type="submit" disabled={loading}>
                             {loading
                                 ? mode === "login"
                                     ? "Đang đăng nhập..."
@@ -178,7 +181,7 @@ export default function LoginPage({ onLoginSuccess }) {
                                     ? "Đăng nhập"
                                     : "Tạo tài khoản"}
                         </button>
-                    </div>
+                    </form>
 
                     <div className="card-foot">
                         {mode === "login" ? (
@@ -207,5 +210,8 @@ export default function LoginPage({ onLoginSuccess }) {
         </div>
     );
 }
+
+
+
 
 

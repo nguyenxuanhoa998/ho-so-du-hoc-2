@@ -237,6 +237,7 @@ export default function Step1Form({ user, onLogout }) {
   const [applicationStatus, setApplicationStatus] = useState("received");
   const [sortOption, setSortOption] = useState("default");
   const [sampleSrc, setSampleSrc] = useState("");
+  const ALLOWED_FILE_EXTS = ["pdf", "jpg", "jpeg", "png", "docx", "mp4"];
 
   const getSampleSrc = (name) => {
     const normalized = (name || "")
@@ -384,6 +385,12 @@ export default function Step1Form({ user, onLogout }) {
   const handleUpload = async (key, event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_FILE_EXTS.includes(ext)) {
+      alert("Không tải được, không hỗ trợ định dạng file này.");
+      event.target.value = "";
+      return;
+    }
     if (!user?.id) {
       alert("Bạn cần đăng nhập lại để tải tệp.");
       return;
@@ -1446,7 +1453,7 @@ export default function Step1Form({ user, onLogout }) {
                             {status === 'rejected' || !isUploaded ? (
                               <label className="btn-resubmit" style={{ marginTop: 0, padding: '8px 16px', borderRadius: 20 }}>
                                 {isUploading ? 'Đang tải...' : '☁ Tải lên lại'}
-                                <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} disabled={isUploading} />
+                                <input className="upload-hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.mp4" onChange={(e) => handleUpload(docName, e)} disabled={isUploading} />
                               </label>
                             ) : (
                               <div style={{ color: status === 'approved' ? '#16a34a' : '#94a3b8' }}><Check size={20} /></div>
@@ -1645,7 +1652,7 @@ export default function Step1Form({ user, onLogout }) {
                               <label className="btn-edit-doc">
                                 <Pencil size={14} />
                                 Chỉnh sửa
-                                <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
+                                <input className="upload-hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.mp4" onChange={(e) => handleUpload(docName, e)} />
                               </label>
                             )}
                             {status !== 'approved' && (
@@ -1657,7 +1664,7 @@ export default function Step1Form({ user, onLogout }) {
                         <div className="upload-actions">
                           <label className="upload-btn">
                             Chọn tệp tin
-                            <input className="upload-hidden" type="file" onChange={(e) => handleUpload(docName, e)} />
+                            <input className="upload-hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.mp4" onChange={(e) => handleUpload(docName, e)} />
                           </label>
                           {getSampleSrc(docName) && (
                             <button type="button" className="btn-sample" onClick={() => setSampleSrc(getSampleSrc(docName))}>
