@@ -30,7 +30,7 @@ const SUPER_ADMIN = {
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: '',
+    password: '1',
     database: 'du_hoc_db'
 });
 
@@ -301,6 +301,26 @@ db.connect((err) => {
                 console.error('Ensure docs status columns error:', alterErr.message);
             }
         });
+    });
+
+    const ensureStudentNotesTableSql = `
+        CREATE TABLE IF NOT EXISTS student_notes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            student_id INT NOT NULL,
+            admin_id INT NULL,
+            admin_name VARCHAR(255) DEFAULT '',
+            admin_role VARCHAR(255) DEFAULT '',
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_student_note_user FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `;
+    db.query(ensureStudentNotesTableSql, (notesErr) => {
+        if (notesErr) {
+            console.error('Ensure student_notes table error:', notesErr.message);
+            return;
+        }
+        console.log('Student notes table is ready.');
     });
 
     (async () => {
@@ -720,6 +740,49 @@ app.post('/api/admin/assign-staff', (req, res) => {
             return res.status(404).json({ message: 'Khong tim thay ho so sinh vien de cap nhat.' });
         }
         return res.json({ message: 'Da cap nhat nhan vien phu trach.' });
+    });
+});
+
+app.get('/api/admin/student/:userId/notes', (req, res) => {
+    const userId = Number(req.params.userId);
+    if (!userId) {
+        return res.status(400).json({ message: 'userId khong hop le.' });
+    }
+    const sql = `
+        SELECT id, admin_id, admin_name, admin_role, content, created_at 
+        FROM student_notes 
+        WHERE student_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.query(sql, [userId], (err, rows) => {
+        if (err) return res.status(500).json({ message: 'Loi lay danh sach ghi chu.', error: err.message });
+        return res.json({ notes: rows || [] });
+    });
+});
+
+app.post('/api/admin/student/notes', (req, res) => {
+    const { studentId, adminId, adminName, adminRole, content } = req.body;
+    if (!studentId || !content) {
+        return res.status(400).json({ message: 'Thieu thong tin bat buoc.' });
+    }
+    const sql = `
+        INSERT INTO student_notes (student_id, admin_id, admin_name, admin_role, content) 
+        VALUES (?, ?, ?, ?, ?)
+    `;
+    db.query(sql, [studentId, adminId || null, adminName || '', adminRole || '', content], (err, result) => {
+        if (err) return res.status(500).json({ message: 'Loi luu ghi chu.', error: err.message });
+        return res.status(201).json({ 
+            message: 'Da luu ghi chu.', 
+            note: {
+                id: result.insertId,
+                student_id: studentId,
+                admin_id: adminId || null,
+                admin_name: adminName || '',
+                admin_role: adminRole || '',
+                content,
+                created_at: new Date().toISOString()
+            }
+        });
     });
 });
 app.post('/api/admin/create-student', async (req, res) => {

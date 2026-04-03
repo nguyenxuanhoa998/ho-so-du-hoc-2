@@ -23,6 +23,67 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
   const [documents, setDocuments] = useState(initialDocs);
   const [feedbackText, setFeedbackText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  const [notes, setNotes] = useState([]);
+  const [newNote, setNewNote] = useState("");
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "Ghi chú" && student?.userId) {
+      fetchNotes();
+    }
+  }, [activeTab, student]);
+
+  const fetchNotes = async () => {
+    setIsLoadingNotes(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/student/${student.userId}/notes`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotes(data.notes || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  const handleSaveNote = async () => {
+    if (!newNote.trim()) return;
+    setIsSavingNote(true);
+    try {
+      const payload = {
+        studentId: student.userId,
+        adminName: "Admin User", 
+        adminRole: "QUẢN TRỊ VIÊN (ADMIN)",
+        content: newNote.trim()
+      };
+      const res = await fetch(`${API_BASE}/api/admin/student/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        setNewNote("");
+        fetchNotes();
+      } else {
+        const data = await res.json();
+        alert(data.message);
+      }
+    } catch (e) {
+      alert("Lỗi khi lưu ghi chú.");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth()+1).padStart(2, '0')}/${d.getFullYear()} - ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     setDocuments(initialDocs);
@@ -448,6 +509,58 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           background: #f8fafc;
         }
         .feedback-input:focus { border-color: #2563eb; background: #fff; }
+
+        /* Notes styles */
+        .notes-container { padding: 24px; max-width: 900px; margin: 0 auto; width: 100%; }
+        .note-input-card {
+          background: #fff; border-radius: 16px; padding: 24px;
+          border: 1px solid #e2e8f0; margin-bottom: 32px;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .note-input-header {
+          display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700;
+          color: #0f172a; margin-bottom: 16px;
+        }
+        .note-textarea {
+          width: 100%; height: 120px; border-radius: 12px; border: 1px solid #e2e8f0;
+          padding: 16px; font-size: 14px; resize: none; outline: none; background: #f8fafc;
+          margin-bottom: 16px; transition: all 0.2s; font-family: inherit;
+        }
+        .note-textarea:focus { border-color: #2563eb; background: #fff; }
+        .note-input-footer { display: flex; justify-content: space-between; align-items: center; }
+        .note-security-text { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; }
+        .btn-save-note {
+          background: #2563eb; color: #fff; padding: 10px 20px; border-radius: 8px;
+          font-weight: 600; font-size: 14px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+          transition: background 0.2s;
+        }
+        .btn-save-note:hover:not(:disabled) { background: #1d4ed8; }
+        .btn-save-note:disabled { opacity: 0.7; cursor: not-allowed; }
+        .notes-history-header {
+          display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+          font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .note-item {
+          background: #fdfde8; border-radius: 16px; padding: 20px;
+          border: 1px solid #fef08a; margin-bottom: 16px;
+        }
+        .note-item.other-role { background: #f8fafc; border-color: #e2e8f0; }
+        .note-item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .note-author { display: flex; align-items: center; gap: 12px; }
+        .note-avatar {
+          width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          background: #0f172a; color: #fff; font-weight: 700; font-size: 14px;
+        }
+        .note-avatar.verifier { background: #cbd5e1; color: #475569; }
+        .note-author-info .name { font-size: 14px; font-weight: 700; color: #0f172a; }
+        .note-author-info .role { font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 2px; }
+        .note-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .note-date { font-size: 12px; color: #64748b; }
+        .note-tag {
+          font-size: 10px; font-weight: 700; color: #b45309; background: #fef3c7;
+          border: 1px solid #fde68a; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;
+        }
+        .note-content { font-size: 14px; color: #334155; line-height: 1.6; white-space: pre-wrap; }
       `}</style>
 
       {/* Top Navbar */}
@@ -500,7 +613,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
       <div className="tabs-row">
         {["Thông tin cá nhân", "Hồ sơ tài liệu", "Lịch sử trao đổi", "Ghi chú"].map(tab => (
           <div key={tab} className={`tab ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
-            {tab}
+            {tab === "Ghi chú" && notes.length > 0 ? `Ghi chú (${notes.length})` : tab}
           </div>
         ))}
       </div>
@@ -659,6 +772,64 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                 Vui lòng chọn tài liệu bên trái
               </div>
             )
+          ) : activeTab === "Ghi chú" ? (
+            <div className="notes-container scrollable">
+              <div className="note-input-card">
+                <div className="note-input-header">
+                  <Edit3 size={18} color="#2563eb" /> Thêm ghi chú nội bộ
+                </div>
+                <textarea 
+                  className="note-textarea"
+                  placeholder="Nhập nội dung ghi chú nội bộ..."
+                  value={newNote}
+                  onChange={e => setNewNote(e.target.value)}
+                />
+                <div className="note-input-footer">
+                  <div className="note-security-text">
+                    <Shield size={14} /> Nội dung này được bảo mật và chỉ hiển thị cho nhân viên hệ thống.
+                  </div>
+                  <button className="btn-save-note" onClick={handleSaveNote} disabled={isSavingNote || !newNote.trim()}>
+                    <CheckCircle2 size={16} /> Lưu ghi chú
+                  </button>
+                </div>
+              </div>
+
+              <div className="notes-history-header">
+                <span>LỊCH SỬ GHI CHÚ</span>
+                <span>{notes.length} GHI CHÚ</span>
+              </div>
+
+              <div className="notes-list">
+                {isLoadingNotes ? (
+                  <div style={{ textAlign: "center", padding: 20, color: "#64748b", fontSize: 14 }}>Đang tải...</div>
+                ) : notes.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: 20, color: "#64748b", fontSize: 14 }}>Chưa có ghi chú nào.</div>
+                ) : (
+                  notes.map(note => (
+                    <div key={note.id} className="note-item">
+                      <div className="note-item-header">
+                        <div className="note-author">
+                          <div className={`note-avatar ${note.admin_role && note.admin_role.toLowerCase().includes('admin') ? '' : 'verifier'}`}>
+                            {note.admin_name ? note.admin_name.slice(0, 2).toUpperCase() : "AD"}
+                          </div>
+                          <div className="note-author-info">
+                            <div className="name">{note.admin_name || "Admin User"}</div>
+                            <div className="role">{note.admin_role || "QUẢN TRỊ VIÊN (ADMIN)"}</div>
+                          </div>
+                        </div>
+                        <div className="note-meta">
+                          <div className="note-date">{formatDate(note.created_at)}</div>
+                          <div className="note-tag">
+                            <Shield size={10} /> INTERNAL ONLY - HIDDEN FROM STUDENT
+                          </div>
+                        </div>
+                      </div>
+                      <div className="note-content">{note.content}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
               Nội dung đang được cập nhật
