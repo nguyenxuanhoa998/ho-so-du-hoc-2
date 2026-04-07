@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   UserCircle,
@@ -388,6 +388,11 @@ export default function Step1Form({ user, onLogout }) {
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
     if (!ALLOWED_FILE_EXTS.includes(ext)) {
       alert("Không tải được, không hỗ trợ định dạng file này.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size exceeds the maximum allowed limit.");
       event.target.value = "";
       return;
     }

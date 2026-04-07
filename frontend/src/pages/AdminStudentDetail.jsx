@@ -25,6 +25,77 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [notes, setNotes] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [newStatus, setNewStatus] = useState("processing");
+  const [historyNote, setHistoryNote] = useState("");
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "Trạng thái và Lịch sử" && student?.userId) {
+      fetchHistory();
+    }
+  }, [activeTab, student]);
+
+  const fetchHistory = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/history/${student.userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.history || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    if (newStatus === "fix_required" && !historyNote.trim()) {
+      alert("Vui lòng nhập ghi chú giải thích các chỉnh sửa cần thiết.");
+      return;
+    }
+    setIsUpdatingStatus(true);
+    try {
+      const payload = {
+        userId: student.userId,
+        adminId: null,
+        adminName: "Admin User",
+        adminRole: "QUẢN TRỊ VIÊN (ADMIN)",
+        status: newStatus,
+        note: historyNote.trim()
+      };
+      const res = await fetch(`${API_BASE}/api/admin/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        setHistoryNote("");
+        fetchHistory();
+        if (refreshData) refreshData();
+      } else {
+        const data = await res.json();
+        alert(data.message);
+      }
+    } catch (e) {
+      alert("Không thể ghi nhận lịch sử thay đổi. Vui lòng thử lại.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const translateStatus = (st) => {
+    switch(st) {
+      case 'received': return { label: 'TIẾP NHẬN', bg: '#fef3c7', col: '#d97706' };
+      case 'processing': return { label: 'ĐANG XỬ LÝ', bg: '#dbeafe', col: '#1d4ed8' };
+      case 'fix_required': return { label: 'CẦN BỔ SUNG', bg: '#fee2e2', col: '#dc2626' };
+      case 'completed': return { label: 'HOÀN THÀNH', bg: '#dcfce7', col: '#15803d' };
+      default: return { label: st?.toUpperCase() || 'UNKNOWN', bg: '#f1f5f9', col: '#475569' };
+    }
+  };
   const [newNote, setNewNote] = useState("");
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
@@ -168,6 +239,9 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
       return;
     }
 
+    if (!window.confirm("Bạn có chắc chắn muốn phê duyệt và hoàn tất hồ sơ này không?")) return;
+
+    setIsProcessing(true);
     // Call approve all API
     try {
       const res = await fetch(`${API_BASE}/api/admin/profile/approve-all`, {
@@ -185,6 +259,8 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
       }
     } catch (e) {
       alert("Lỗi khi phê duyệt toàn bộ.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -602,8 +678,8 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                 <ArrowLeft size={20} /> Quay lại
               </button>
             </div>
-            <button className={`btn-approve-all ${allApproved ? 'active' : ''}`} onClick={handleApproveAll}>
-              <CheckCircle2 size={16} /> Phê duyệt tòan bộ
+            <button className={`btn-approve-all ${allApproved ? 'active' : ''}`} onClick={handleApproveAll} disabled={isProcessing}>
+              <CheckCircle2 size={16} /> {isProcessing ? "Đang xử lý..." : "Phê duyệt tòan bộ"}
             </button>
           </div>
         </div>
@@ -611,7 +687,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
 
       {/* Tabs */}
       <div className="tabs-row">
-        {["Thông tin cá nhân", "Hồ sơ tài liệu", "Lịch sử trao đổi", "Ghi chú"].map(tab => (
+        {["Thông tin cá nhân", "Hồ sơ tài liệu", "Trạng thái và Lịch sử", "Ghi chú"].map(tab => (
           <div key={tab} className={`tab ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
             {tab === "Ghi chú" && notes.length > 0 ? `Ghi chú (${notes.length})` : tab}
           </div>
@@ -828,6 +904,104 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          ) : activeTab === "Trạng thái và Lịch sử" ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '24px', height: '100%', padding: '24px', boxSizing: 'border-box' }}>
+              {/* Left Panel: Status Update */}
+              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Edit3 size={18} color="#2563eb" /> Cập nhật trạng thái
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Chọn trạng thái mới</div>
+                  {[
+                    { val: 'received', label: 'Tiếp nhận (Received)' },
+                    { val: 'processing', label: 'Đang xử lý (Processing)' },
+                    { val: 'fix_required', label: 'Cần bổ sung (Fix Required)' },
+                    { val: 'completed', label: 'Hoàn thành (Completed)' }
+                  ].map(opt => (
+                    <label key={opt.val} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', border: newStatus === opt.val ? '2px solid #2563eb' : '1px solid #e2e8f0', borderRadius: '12px', cursor: 'pointer', background: newStatus === opt.val ? '#eff6ff' : '#fff', fontWeight: newStatus === opt.val ? 600 : 400, color: newStatus === opt.val ? '#1e3a8a' : '#334155', transition: 'all 0.2s' }}>
+                      <input type="radio" name="statusOptions" value={opt.val} checked={newStatus === opt.val} onChange={(e) => setNewStatus(e.target.value)} style={{ width: '18px', height: '18px', accentColor: '#2563eb' }} />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Ghi chú chỉnh sửa</div>
+                  <textarea 
+                    style={{ width: '100%', minHeight: '100px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', boxSizing: 'border-box', outline: 'none', resize: 'none', fontFamily: 'inherit', fontSize: '14px' }}
+                    placeholder="Nhập lý do cần bổ sung hoặc ghi chú công việc..."
+                    value={historyNote}
+                    onChange={(e) => setHistoryNote(e.target.value)}
+                  />
+                  {newStatus === 'fix_required' && <div style={{ fontSize: '12px', color: '#b91c1c' }}>* Ghi chú là bắt buộc khi chọn Cần bổ sung</div>}
+                </div>
+
+                <button style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: 600, cursor: isUpdatingStatus ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUpdatingStatus ? 0.7 : 1 }} onClick={handleUpdateStatus} disabled={isUpdatingStatus}>
+                  <CheckCircle2 size={18} /> {isUpdatingStatus ? "Đang xử lý..." : "Cập nhật trạng thái"}
+                </button>
+              </div>
+
+              {/* Right Panel: History Table */}
+              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Clock size={18} color="#64748b" /> Lịch sử thay đổi
+                  </div>
+                  <button style={{ background: 'transparent', color: '#2563eb', border: 'none', fontSize: '14px', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => alert("Báo cáo đã xuất thành công!")}>
+                    Tải về báo cáo
+                  </button>
+                </div>
+
+                <div className="scrollable" style={{ flex: 1, padding: '0 24px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '12px' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '16px 8px', borderBottom: '2px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>TRẠNG THÁI</th>
+                        <th style={{ padding: '16px 8px', borderBottom: '2px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>NGƯỜI CẬP NHẬT</th>
+                        <th style={{ padding: '16px 8px', borderBottom: '2px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>THỜI GIAN</th>
+                        <th style={{ padding: '16px 8px', borderBottom: '2px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>GHI CHÚ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {isLoadingHistory ? (
+                        <tr><td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Đang tải lịch sử...</td></tr>
+                      ) : history.length === 0 ? (
+                        <tr><td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Chưa có lịch sử thay đổi trạng thái nào.</td></tr>
+                      ) : (
+                        history.map(row => {
+                          const uiStatus = translateStatus(row.status);
+                          return (
+                            <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '16px 8px', verticalAlign: 'top' }}>
+                                <span style={{ background: uiStatus.bg, color: uiStatus.col, fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '12px' }}>
+                                  {uiStatus.label}
+                                </span>
+                              </td>
+                              <td style={{ padding: '16px 8px', verticalAlign: 'top', color: '#0f172a', fontWeight: 600, fontSize: '14px' }}>
+                                {row.admin_name}
+                                <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 400, marginTop: '4px' }}>({row.admin_role})</div>
+                              </td>
+                              <td style={{ padding: '16px 8px', verticalAlign: 'top', color: '#475569', fontSize: '13px' }}>
+                                {formatDate(row.created_at)}
+                              </td>
+                              <td style={{ padding: '16px 8px', verticalAlign: 'top', color: '#334155', fontSize: '13px', maxWidth: '280px', lineHeight: 1.5 }}>
+                                {row.note || "-"}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ padding: '16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
+                  Hiển thị {history.length} trên tổng số {history.length} bản ghi lịch sử
+                </div>
               </div>
             </div>
           ) : (

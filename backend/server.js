@@ -323,6 +323,24 @@ db.connect((err) => {
         console.log('Student notes table is ready.');
     });
 
+    const ensureStatusHistoryTableSql = `
+        CREATE TABLE IF NOT EXISTS student_status_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            student_id INT NOT NULL,
+            admin_id INT NULL,
+            admin_name VARCHAR(255) DEFAULT '',
+            admin_role VARCHAR(255) DEFAULT '',
+            status VARCHAR(100) NOT NULL,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_history_user FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `;
+    db.query(ensureStatusHistoryTableSql, (err) => {
+        if (err) console.error('Ensure student_status_history table error:', err.message);
+        else console.log('Student status history table is ready.');
+    });
+
     (async () => {
         try {
             await ensureSecuritySchema();
@@ -1218,6 +1236,40 @@ app.put('/api/security/permissions/:userId', (req, res) => {
     Promise.all(updates)
         .then(() => res.json({ message: 'Da cap nhat phan quyen.' }))
         .catch((err) => res.status(500).json({ message: 'Loi cap nhat phan quyen.', error: err.message }));
+});
+
+app.get('/api/admin/history/:userId', (req, res) => {
+    const userId = Number(req.params.userId);
+    if (!userId) return res.status(400).json({ message: 'userId khong hop le.' });
+
+    const sql = `
+        SELECT * FROM student_status_history 
+        WHERE student_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.query(sql, [userId], (err, rows) => {
+        if (err) return res.status(500).json({ message: 'Loi lay lich su.', error: err.message });
+        res.json({ history: rows || [] });
+    });
+});
+
+app.post('/api/admin/history', (req, res) => {
+    const { userId, adminId, adminName, adminRole, status, note } = req.body;
+    if (!userId || !status) return res.status(400).json({ message: 'Thieu thong tin yeu cau.' });
+
+    const sqlUpdate = 'UPDATE student_profiles SET application_status = ? WHERE user_id = ?';
+    db.query(sqlUpdate, [status, userId], (err) => {
+        if (err) return res.status(500).json({ message: 'Loi cap nhat trang thai profile.', error: err.message });
+
+        const sqlInsert = `
+            INSERT INTO student_status_history (student_id, admin_id, admin_name, admin_role, status, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        db.query(sqlInsert, [userId, adminId || null, adminName || '', adminRole || '', status, note || ''], (insertErr) => {
+            if (insertErr) return res.status(500).json({ message: 'Loi them lich su.', error: insertErr.message });
+            res.json({ message: 'Cập nhật trạng thái và lưu lịch sử thành công!' });
+        });
+    });
 });
 
 const PORT = 5000;
