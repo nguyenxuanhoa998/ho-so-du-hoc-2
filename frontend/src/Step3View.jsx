@@ -1,21 +1,27 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 
 const Step3View = () => {
   const [searchData, setSearchData] = useState({ fullName: '', phone: '' });
   const [data, setData] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '' });
+
+  const showNotification = (message) => {
+    setNotification({ show: true, message });
+  };
 
   const handleSearch = async () => {
     try {
       const res = await axios.post('http://localhost:5000/api/get-all-student-docs', searchData);
       setData(res.data);
     } catch (err) {
-      alert(err.response?.data || "Không tìm thấy sinh viên hoặc lỗi kết nối!");
+      showNotification(err.response?.data || "Không tìm thấy sinh viên hoặc lỗi kết nối!");
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8">
+    <>
+      <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-2xl font-black text-yellow-500 mb-8 uppercase text-center tracking-widest italic">
           --- Bảng Tổng Hợp Hồ Sơ Toàn Diện ---
@@ -88,7 +94,24 @@ const Step3View = () => {
         )}
       </div>
     </div>
-  );
+    {notification.show && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999]" onClick={() => setNotification({ show: false, message: '' })}>
+        <div className="bg-slate-800 border border-slate-700 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+          <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <p className="text-white font-semibold mb-6 leading-relaxed">{notification.message}</p>
+          <button 
+            className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors"
+            onClick={() => setNotification({ show: false, message: '' })}
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    )}
+  </>
+);
 };
 
 export default Step3View;

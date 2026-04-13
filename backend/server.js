@@ -30,7 +30,7 @@ const SUPER_ADMIN = {
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: '1',
+    password: '',
     database: 'du_hoc_db'
 });
 
@@ -549,6 +549,108 @@ app.post('/api/student/documents/delete', async (req, res) => {
     });
 });
 
+app.get('/api/student/universities/:userId', async (req, res) => {
+    const userId = Number(req.params.userId);
+    if (!userId) return res.status(400).json({ message: 'userId khong hop le.' });
+    try {
+        const rows = await dbQuery(
+            'SELECT id, university_name, status, offer_letter_url, is_enrolled, created_at FROM student_universities WHERE user_id = ? ORDER BY id DESC',
+            [userId]
+        );
+        return res.json({ universities: rows || [] });
+    } catch (err) {
+        return res.status(500).json({ message: 'Loi lay danh sach truong.', error: err.message });
+    }
+});
+
+app.post('/api/student/universities', async (req, res) => {
+    const { userId, name } = req.body || {};
+    const normalizedUserId = Number(userId);
+    const uniName = (name || '').trim();
+    if (!normalizedUserId || !uniName) {
+        return res.status(400).json({ message: 'Thieu userId hoac ten truong.' });
+    }
+    try {
+        const exists = await dbQuery(
+            'SELECT id FROM student_universities WHERE user_id = ? AND LOWER(TRIM(university_name)) = ? LIMIT 1',
+            [normalizedUserId, uniName.toLowerCase()]
+        );
+        if (exists.length) {
+            return res.status(409).json({ message: 'Truong da ton tai.' });
+        }
+        const result = await dbQuery(
+            'INSERT INTO student_universities (user_id, university_name) VALUES (?, ?)',
+            [normalizedUserId, uniName]
+        );
+        return res.status(201).json({
+            message: 'Da them truong.',
+            university: { id: result.insertId, university_name: uniName, status: 'pending', offer_letter_url: null, is_enrolled: 0 }
+        });
+    } catch (err) {
+        return res.status(500).json({ message: 'Loi them truong.', error: err.message });
+    }
+});
+
+app.post('/api/admin/universities/offer', async (req, res) => {
+    const { userId, uniId, fileUrl } = req.body;
+    if (!userId || !uniId || !fileUrl) {
+        return res.status(400).json({ message: 'Thiếu thông tin cập nhật offer.' });
+    }
+    try {
+        await dbQuery(
+            'UPDATE student_universities SET status = "approved", offer_letter_url = ? WHERE id = ? AND user_id = ?',
+            [fileUrl, uniId, userId]
+        );
+        const uniRows = await dbQuery("SELECT university_name FROM student_universities WHERE id = ?", [uniId]);
+        const uniName = uniRows[0] ? uniRows[0].university_name : 'trường';
+        await dbQuery(
+            "INSERT INTO student_status_history (student_id, admin_id, admin_name, admin_role, status, note) VALUES (?, NULL, 'Admin User', 'QUẢN TRỊ VIÊN (ADMIN)', 'offer_uploaded', ?)",
+            [userId, `Cập nhật thư mời nhập học: ${uniName}`]
+        );
+        return res.json({ message: 'Đã cập nhật offer letter.' });
+    } catch (err) {
+        return res.status(500).json({ message: 'Lỗi cập nhật offer.', error: err.message });
+    }
+});
+
+app.post('/api/admin/universities/remove-offer', async (req, res) => {
+    const { userId, uniId } = req.body;
+    if (!userId || !uniId) {
+        return res.status(400).json({ message: 'Thiếu thông tin.' });
+    }
+    try {
+        await dbQuery(
+            'UPDATE student_universities SET status = "pending", offer_letter_url = NULL WHERE id = ? AND user_id = ?',
+            [uniId, userId]
+        );
+        const uniRows = await dbQuery("SELECT university_name FROM student_universities WHERE id = ?", [uniId]);
+        const uniName = uniRows[0] ? uniRows[0].university_name : 'trường';
+        await dbQuery(
+            "INSERT INTO student_status_history (student_id, admin_id, admin_name, admin_role, status, note) VALUES (?, NULL, 'Admin User', 'QUẢN TRỊ VIÊN (ADMIN)', 'offer_deleted', ?)",
+            [userId, `Đã xóa thư mời nhập học: ${uniName}`]
+        );
+        return res.json({ message: 'Đã xóa thư mời.' });
+    } catch (err) {
+        return res.status(500).json({ message: 'Lỗi xóa offer.', error: err.message });
+    }
+});
+
+app.post('/api/student/universities/enroll', async (req, res) => {
+    const { userId, uniId } = req.body;
+    if (!userId || !uniId) {
+        return res.status(400).json({ message: 'Thiếu thông tin xác nhận.' });
+    }
+    try {
+        await dbQuery(
+            'UPDATE student_universities SET is_enrolled = 1 WHERE id = ? AND user_id = ?',
+            [uniId, userId]
+        );
+        return res.json({ message: 'Đã xác nhận nhập học.' });
+    } catch (err) {
+        return res.status(500).json({ message: 'Lỗi xác nhận nhập học.', error: err.message });
+    }
+});
+
 app.get('/api/admin/students', (req, res) => {
     const fullName = (req.query.fullName || '').toString().trim().toLowerCase();
     const phone = (req.query.phone || '').toString().trim();
@@ -897,6 +999,10 @@ app.post('/api/admin/document/approve', async (req, res) => {
             "UPDATE student_profile_documents SET status = 'approved', admin_feedback = '' WHERE user_id = ? AND doc_name = ?",
             [userId, docName]
         );
+        await dbQuery(
+            "INSERT INTO student_status_history (student_id, admin_id, admin_name, admin_role, status, note) VALUES (?, NULL, 'Admin User', 'QUẢN TRỊ VIÊN (ADMIN)', 'doc_approved', ?)",
+            [userId, `Đã duyệt tài liệu: ${docName}`]
+        );
         res.json({ message: 'Đã phê duyệt tài liệu.' });
     } catch (e) {
         res.status(500).json({ message: 'Lỗi phê duyệt.', error: e.message });
@@ -911,6 +1017,10 @@ app.post('/api/admin/document/reject', async (req, res) => {
         await dbQuery(
             "UPDATE student_profile_documents SET status = 'rejected', admin_feedback = ? WHERE user_id = ? AND doc_name = ?",
             [feedback, userId, docName]
+        );
+        await dbQuery(
+            "INSERT INTO student_status_history (student_id, admin_id, admin_name, admin_role, status, note) VALUES (?, NULL, 'Admin User', 'QUẢN TRỊ VIÊN (ADMIN)', 'doc_rejected', ?)",
+            [userId, `Từ chối tài liệu: ${docName}. Lý do: ${feedback}`]
         );
         res.json({ message: 'Đã từ chối tài liệu.' });
     } catch (e) {
@@ -930,6 +1040,10 @@ app.post('/api/admin/profile/approve-all', async (req, res) => {
         }
 
         await dbQuery("UPDATE student_profiles SET application_status = 'completed', is_completed = 1 WHERE user_id = ?", [userId]);
+        await dbQuery(
+            "INSERT INTO student_status_history (student_id, admin_id, admin_name, admin_role, status, note) VALUES (?, NULL, 'Admin User', 'QUẢN TRỊ VIÊN (ADMIN)', 'completed', 'Đã phê duyệt toàn bộ hồ sơ')",
+            [userId]
+        );
         res.json({ message: 'Hồ sơ đã được phê duyệt thành công.' });
     } catch (e) {
         res.status(500).json({ message: 'Lỗi phê duyệt hồ sơ.', error: e.message });
@@ -942,6 +1056,10 @@ app.post('/api/admin/profile/request-fix', async (req, res) => {
 
     try {
         await dbQuery("UPDATE student_profiles SET application_status = 'fix_required' WHERE user_id = ?", [userId]);
+        await dbQuery(
+            "INSERT INTO student_status_history (student_id, admin_id, admin_name, admin_role, status, note) VALUES (?, NULL, 'Admin User', 'QUẢN TRỊ VIÊN (ADMIN)', 'fix_required', 'Đã yêu cầu bổ sung chỉnh sửa hồ sơ')",
+            [userId]
+        );
         res.json({ message: 'Đã yêu cầu sinh viên bổ sung hồ sơ.' });
     } catch (e) {
         res.status(500).json({ message: 'Lỗi yêu cầu bổ sung.', error: e.message });

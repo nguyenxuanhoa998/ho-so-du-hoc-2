@@ -13,6 +13,10 @@ import {
   Check,
   ShieldCheck,
   Pencil,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Shield
 } from "lucide-react";
 
 const CURRENT_LEVEL_OPTIONS = ["Bậc đại học", "Bậc thạc sĩ", "Bậc chuyển tiếp", "Bậc tiến sĩ"];
@@ -237,6 +241,21 @@ export default function Step1Form({ user, onLogout }) {
   const [applicationStatus, setApplicationStatus] = useState("received");
   const [sortOption, setSortOption] = useState("default");
   const [sampleSrc, setSampleSrc] = useState("");
+  const [activePage, setActivePage] = useState("steps");
+  const [universities, setUniversities] = useState([]);
+  const [isAddUniOpen, setIsAddUniOpen] = useState(false);
+  const [uniName, setUniName] = useState("");
+  const [selectedUniId, setSelectedUniId] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', confirmText: 'Xác nhận', onConfirm: null });
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    if (type === 'success') {
+      setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 3000);
+    }
+  };
+
   const ALLOWED_FILE_EXTS = ["pdf", "jpg", "jpeg", "png", "docx", "mp4"];
 
   const getSampleSrc = (name) => {
@@ -339,15 +358,15 @@ export default function Step1Form({ user, onLogout }) {
     }
 
     if (!formData.lastName || !formData.firstName || !formData.email || !formData.phone) {
-      alert("Vui lòng nhập đầy đủ Họ, Tên, Email và Số điện thoại.");
+      showNotification("Vui lòng nhập đầy đủ Họ, Tên, Email và Số điện thoại.", "warning");
       return;
     }
     if (!formData.targetLabel) {
-      alert("Vui lòng chọn Trình độ bằng cấp mong muốn.");
+      showNotification("Vui lòng chọn Trình độ bằng cấp mong muốn.", "warning");
       return;
     }
     if (!user?.id) {
-      alert("Bạn cần đăng nhập lại để lưu thông tin vào hệ thống.");
+      showNotification("Bạn cần đăng nhập lại để lưu thông tin vào hệ thống.", "error");
       return;
     }
 
@@ -377,8 +396,9 @@ export default function Step1Form({ user, onLogout }) {
       setCurrentStep(2);
       setIsStep1Locked(true);
       setAllowStep1Edit(false);
+      showNotification("Đã lưu thông tin cá nhân thành công!", "success");
     } catch (e) {
-      alert(e.message || "Lưu thông tin thất bại. Vui lòng thử lại.");
+      showNotification(e.message || "Lưu thông tin thất bại. Vui lòng thử lại.", "error");
     }
   };
 
@@ -387,21 +407,21 @@ export default function Step1Form({ user, onLogout }) {
     if (!file) return;
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
     if (!ALLOWED_FILE_EXTS.includes(ext)) {
-      alert("Không tải được, không hỗ trợ định dạng file này.");
+      showNotification("Không tải được, không hỗ trợ định dạng file này.", "error");
       event.target.value = "";
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert("File size exceeds the maximum allowed limit.");
+      showNotification("Tệp của bạn vượt quá dung lượng cho phép. Vui lòng chọn tệp có kích thước nhỏ hơn 10MB để tải lên thành công.", "warning");
       event.target.value = "";
       return;
     }
     if (!user?.id) {
-      alert("Bạn cần đăng nhập lại để tải tệp.");
+      showNotification("Bạn cần đăng nhập lại để tải tệp.", "error");
       return;
     }
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      alert("Chưa cấu hình Cloudinary. Vui lòng kiểm tra file .env.");
+      showNotification("Chưa cấu hình Cloudinary.", "error");
       return;
     }
     const sizeBytes = file.size || 0;
@@ -426,7 +446,10 @@ export default function Step1Form({ user, onLogout }) {
       if (!res.ok) {
         throw new Error(data.error?.message || "Không thể tải tệp lên Cloudinary.");
       }
-      const url = data.secure_url || "";
+      let url = data.secure_url || "";
+      if (ext && !url.toLowerCase().endsWith(`.${ext}`)) {
+        url += `.${ext}`;
+      }
       setUploadedDocs((prev) => ({
         ...prev,
         [key]: {
@@ -439,52 +462,154 @@ export default function Step1Form({ user, onLogout }) {
           adminFeedback: '',
         },
       }));
+      showNotification(`Đã tải lên "${file.name}" thành công!`, "success");
     } catch (err) {
-      alert(err.message || "Không thể tải tệp. Vui lòng thử lại.");
+      showNotification(err.message || "Không thể tải tệp. Vui lòng thử lại.", "error");
     } finally {
       setUploadingDocs((prev) => ({ ...prev, [key]: false }));
     }
   };
 
-  const handleDeleteDoc = async (docName) => {
-    if (!docName) return;
-    const confirmed = window.confirm(`Bạn có chắc muốn xóa tài liệu "${docName}"?`);
-    if (!confirmed) return;
-    if (!user?.id) {
-      alert("Bạn cần đăng nhập lại để xóa tệp.");
-      return;
-    }
+  const openAddUniversity = () => {
+    setUniName("");
+    setIsAddUniOpen(true);
+  };
+
+  const fetchUniversities = async () => {
+    if (!user?.id) return;
     try {
-      const uploaded = uploadedDocs[docName] || {};
-      const res = await fetch(`${API_BASE}/documents/delete`, {
+      const res = await fetch(`${API_BASE}/universities/${user.id}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      const list = data.universities || [];
+      setUniversities(
+        list.map((u) => ({
+          id: u.id,
+          name: u.university_name,
+          status: u.status,
+          createdAt: u.created_at,
+          offer_letter_url: u.offer_letter_url,
+          is_enrolled: u.is_enrolled,
+        }))
+      );
+      if (list.length && !selectedUniId) setSelectedUniId(list[0].id);
+    } catch (e) {
+      // silent
+    }
+  };
+
+  const handleEnroll = async () => {
+    if (!selectedUniId || !user?.id) return;
+    const selectedUni = universities.find(u => u.id === selectedUniId);
+    if (!selectedUni || selectedUni.status !== 'approved') return;
+
+    try {
+      const res = await fetch(`${API_BASE}/universities/enroll`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          docName,
-          fileUrl: uploaded.url || "",
-        }),
+        body: JSON.stringify({ userId: user.id, uniId: selectedUniId })
+      });
+      if (res.ok) {
+        showNotification("Xác nhận nhập học thành công!", "success");
+        fetchUniversities();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showNotification(errorData.message || "Không thể xác nhận nhập học.", "error");
+      }
+    } catch (error) {
+      showNotification("Lỗi khi xác nhận: " + error.message, "error");
+    }
+  };
+
+  const addUniversity = async () => {
+    const name = uniName.trim();
+    if (!name) return;
+    if (!user?.id) return;
+    try {
+      const res = await fetch(`${API_BASE}/universities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, name }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || "Không thể xóa tài liệu.");
+        showNotification(data.message || "Không thể thêm trường.", "error");
+        return;
       }
-      if (data.cloudinaryError) {
-        alert(` xóa trong hệ thống nhưng Cloudinary báo lỗi: ${data.cloudinaryError}`);
-      }
-      setUploadedDocs((prev) => ({
-        ...prev,
-        [docName]: {
-          name: "",
-          size: "",
-          type: "",
-          url: "",
-          uploadedAt: "",
-        },
-      }));
-    } catch (err) {
-      alert(err.message || "Không thể xóa tài liệu.");
+      setUniversities((prev) => {
+        const exists = prev.some((u) => u.name.toLowerCase() === name.toLowerCase());
+        if (exists) return prev;
+        const next = [
+          ...prev,
+          {
+            id: data.university?.id || Date.now(),
+            name,
+            status: data.university?.status || "pending",
+          },
+        ];
+        if (!selectedUniId) setSelectedUniId(next[0].id);
+        return next;
+      });
+      setIsAddUniOpen(false);
+      showNotification("Đã thêm trường đại học mục tiêu.", "success");
+    } catch (e) {
+      showNotification("Không thể thêm trường.", "error");
     }
+  };
+
+  useEffect(() => {
+    if (activePage === "university") {
+      fetchUniversities();
+    }
+  }, [activePage, user?.id]);
+
+  const handleDeleteDoc = (docName) => {
+    if (!docName) return;
+    setConfirmModal({
+      show: true,
+      message: `Bạn có chắc chắn muốn xóa tài liệu "${docName}"? Hành động này không thể hoàn tác.`,
+      confirmText: "Xác nhận xóa",
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, show: false }));
+        if (!user?.id) {
+          showNotification("Bạn cần đăng nhập lại để xóa tệp.", "error");
+          return;
+        }
+        try {
+          const uploaded = uploadedDocs[docName] || {};
+          const res = await fetch(`${API_BASE}/documents/delete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+              docName,
+              fileUrl: uploaded.url || "",
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.message || "Không thể xóa tài liệu.");
+          }
+          if (data.cloudinaryError) {
+            showNotification(`Xóa thành công trong hệ thống nhưng lỗi Cloudinary: ${data.cloudinaryError}`, "warning");
+          } else {
+            showNotification(`Đã xóa tài liệu "${docName}".`, "success");
+          }
+          setUploadedDocs((prev) => ({
+            ...prev,
+            [docName]: {
+              name: "",
+              size: "",
+              type: "",
+              url: "",
+              uploadedAt: "",
+            },
+          }));
+        } catch (err) {
+          showNotification(err.message || "Không thể xóa tài liệu.", "error");
+        }
+      }
+    });
   };
 
 
@@ -545,7 +670,7 @@ export default function Step1Form({ user, onLogout }) {
 
   const goToStep3 = async () => {
     if (!user?.id) {
-      alert("Bạn cần đăng nhập lại để tiếp tục.");
+      showNotification("Bạn cần đăng nhập lại để tiếp tục.", "error");
       return;
     }
     try {
@@ -567,8 +692,9 @@ export default function Step1Form({ user, onLogout }) {
       });
       if (!completeRes.ok) throw new Error("Không thể cập nhật trạng thái hồ sơ.");
       setCurrentStep(3);
+      showNotification("Đã tiến đến bước Kiểm tra & Hoàn tất.", "success");
     } catch (e) {
-      alert("Không thể lưu tài liệu. Thử lại.");
+      showNotification("Không thể lưu tài liệu. Thử lại.", "error");
     }
   };
 
@@ -579,7 +705,7 @@ export default function Step1Form({ user, onLogout }) {
     }
     if (targetStep === 2) {
       if (!hasStep1Data) {
-        alert("Vui lòng hoàn tất thông tin cá nhân trước.");
+        showNotification("Vui lòng hoàn tất thông tin cá nhân trước.", "warning");
         return;
       }
       setCurrentStep(2);
@@ -587,7 +713,7 @@ export default function Step1Form({ user, onLogout }) {
     }
     if (targetStep === 3) {
       if (!hasStep1Data) {
-        alert("Vui long hoan tat thong tin ca nhan truoc.");
+        showNotification("Vui lòng hoàn thiện thông tin cá nhân trước.", "warning");
         return;
       }
       setCurrentStep(3);
@@ -602,12 +728,12 @@ export default function Step1Form({ user, onLogout }) {
 
   const handleFinalize = async () => {
     if (!user?.id) {
-      alert("Không tìm thấy thông tin người dùng đăng nhập.");
+      showNotification("Không tìm thấy thông tin người dùng đăng nhập.", "error");
       return;
     }
     if (isFinalizing) return;
     if (!isStep2Complete) {
-      alert(`Bạn còn thiếu ${missingDocs.length} tài liệu. Vui lòng tải bổ sung trước khi hoàn tất.`);
+      showNotification(`Bạn còn thiếu ${missingDocs.length} tài liệu. Vui lòng tải bổ sung trước khi hoàn tất.`, "warning");
       return;
     }
     setIsFinalizing(true);
@@ -618,9 +744,9 @@ export default function Step1Form({ user, onLogout }) {
         body: JSON.stringify({ userId: user.id, isCompleted: 1 }),
       });
       setIsCompleted(true);
-      alert("Hồ sơ đã được hoàn tất và lưu vào hệ thống.");
+      showNotification("Hồ sơ đã được hoàn tất và gửi đến hệ thống xét duyệt.", "success");
     } catch (e) {
-      alert("Không thể hòan tất hồ sơ. Thử lại.");
+      showNotification("Không thể hoàn tất hồ sơ. Thử lại.", "error");
     } finally {
       setIsFinalizing(false);
     }
@@ -646,17 +772,21 @@ export default function Step1Form({ user, onLogout }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user?.id }),
       });
-      if (!res.ok) throw new Error("Loi gui lại hồ sơ.");
-      alert("Đã nộp lại hồ sơ thành công! Hồ sơ hiện đang được xử lý.");
+      if (!res.ok) throw new Error("Lỗi gửi lại hồ sơ.");
+      showNotification("Đã nộp lại hồ sơ thành công! Hồ sơ hiện đang được xử lý.", "success");
       setApplicationStatus("processing");
     } catch (e) {
-      alert("Lỗi khi nộp lại hồ sơ: " + e.message);
+      showNotification("Lỗi khi nộp lại hồ sơ: " + e.message, "error");
     }
   };
 
   return (
     <div className="global-study-app">
       <style>{`
+        html, body, #root {
+          height: 100%;
+          margin: 0;
+        }
         .global-study-app {
           display: flex;
           min-height: 100vh;
@@ -748,6 +878,8 @@ export default function Step1Form({ user, onLogout }) {
           display: flex;
           flex-direction: column;
           min-height: 100vh;
+          justify-content: flex-start;
+          align-items: flex-start;
         }
         .top-header {
           height: 72px;
@@ -781,6 +913,7 @@ export default function Step1Form({ user, onLogout }) {
         }
         .content-shell {
           padding: 18px 0 26px;
+          margin: 0 auto;
           width: 90%;
           box-sizing: border-box;
         }
@@ -1314,6 +1447,203 @@ export default function Step1Form({ user, onLogout }) {
           flex: 1;
           min-width: 240px;
         }
+
+        .uni-shell {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 24px;
+        }
+        .uni-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+        .uni-title {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 800;
+        }
+        .uni-sub {
+          margin: 6px 0 0;
+          color: #64748b;
+          font-size: 13px;
+        }
+        .uni-banner {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 16px;
+          background: #eff6ff;
+          border: 1px solid #dbeafe;
+          border-radius: 14px;
+          color: #1d4ed8;
+          font-size: 13px;
+          margin: 12px 0 16px;
+        }
+        .uni-list {
+          display: grid;
+          gap: 12px;
+        }
+        .uni-item {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 14px 16px;
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+          background: #fff;
+          cursor: pointer;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .uni-item.selected {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+        }
+        .uni-radio {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          border: 2px solid #cbd5e1;
+          display: grid;
+          place-items: center;
+        }
+        .uni-radio-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #2563eb;
+        }
+        .uni-logo {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: #0f172a;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+          font-size: 12px;
+        }
+        .uni-meta {
+          flex: 1;
+        }
+        .uni-name {
+          font-weight: 800;
+          color: #0f172a;
+        }
+        .uni-desc {
+          font-size: 12px;
+          color: #64748b;
+          margin-top: 2px;
+        }
+        .uni-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 6px;
+          font-size: 12px;
+          color: #475569;
+        }
+        .uni-badge {
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: #e0f2fe;
+          color: #0369a1;
+        }
+        .uni-badge.wait {
+          background: #f1f5f9;
+          color: #64748b;
+        }
+        .uni-add {
+          height: 64px;
+          border-radius: 14px;
+          border: 2px dashed #cbd5e1;
+          background: #f8fafc;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #2563eb;
+          font-weight: 700;
+          font-size: 28px;
+        }
+        .uni-footer {
+          position: sticky;
+          bottom: 0;
+          margin-top: 16px;
+          padding: 14px 16px;
+          border-radius: 16px;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .uni-footer-note {
+          font-size: 12px;
+          color: #64748b;
+        }
+        .btn-confirm {
+          height: 40px;
+          padding: 0 16px;
+          border-radius: 999px;
+          border: none;
+          background: #2563eb;
+          color: #fff;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .modal-mask {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 80;
+        }
+        .modal-card {
+          width: min(420px, 92vw);
+          background: #fff;
+          border-radius: 16px;
+          padding: 20px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+        }
+        .modal-title {
+          font-weight: 800;
+          font-size: 18px;
+          margin: 0 0 12px;
+        }
+        .modal-input {
+          width: 100%;
+          height: 44px;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          padding: 0 12px;
+          outline: none;
+        }
+        .modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          margin-top: 16px;
+        }
+        .btn-light {
+          height: 40px;
+          padding: 0 14px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          cursor: pointer;
+          font-weight: 600;
+        }
         .doc-left {
           display: grid;
           gap: 6px;
@@ -1329,6 +1659,78 @@ export default function Step1Form({ user, onLogout }) {
           .grid-inputs { grid-template-columns: 1fr; }
           .full-width { grid-column: span 1; }
         }
+
+        /* Modal & Notification Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(15, 23, 42, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content {
+          background: white;
+          padding: 32px;
+          border-radius: 24px;
+          max-width: 400px;
+          width: 90%;
+          text-align: center;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          animation: slideUp 0.3s ease-out;
+        }
+        .modal-icon {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 20px;
+        }
+        .modal-icon.success { background: #dcfce7; color: #16a34a; }
+        .modal-icon.error { background: #fee2e2; color: #dc2626; }
+        .modal-icon.warning { background: #fef3c7; color: #d97706; }
+        .modal-message {
+          font-size: 16px;
+          font-weight: 600;
+          color: #0f172a;
+          line-height: 1.5;
+          margin-bottom: 24px;
+        }
+        .btn-modal-close {
+          background: #0f172a;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          min-width: 120px;
+        }
+        .btn-modal-secondary {
+          background: #f1f5f9;
+          color: #475569;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          min-width: 100px;
+        }
+        .btn-modal-close:hover { background: #1e293b; transform: translateY(-1px); }
+        .btn-modal-secondary:hover { background: #e2e8f0; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
       `}</style>
 
       <aside className="sidebar">
@@ -1339,25 +1741,157 @@ export default function Step1Form({ user, onLogout }) {
             <span className="name">{displayName}</span>
             <span className="role">{accountLabel}</span>
           </div>
+          {isAddUniOpen && (
+            <div className="modal-mask" onClick={() => setIsAddUniOpen(false)}>
+              <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-title">Them truong dai hoc</div>
+                <input
+                  className="modal-input"
+                  placeholder="Nhap ten truong dai hoc..."
+                  value={uniName}
+                  onChange={(e) => setUniName(e.target.value)}
+                />
+                <div className="modal-actions">
+                  <button className="btn-light" onClick={() => setIsAddUniOpen(false)}>Huy</button>
+                  <button className="btn-next" onClick={addUniversity}>Them</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <nav className="nav-menu">
           <div className="nav-item"><LayoutDashboard size={18} /> Bảng điều khiển</div>
-          <div className={`nav-item ${currentStep === 1 ? "active" : ""}`} onClick={() => jumpToStep(1)}><UserCircle size={18} /> Hồ sơ của tôi</div>
+          <div
+            className={`nav-item ${activePage === "steps" && currentStep === 1 ? "active" : ""}`}
+            onClick={() => {
+              setActivePage("steps");
+              jumpToStep(1);
+            }}
+          >
+            <UserCircle size={18} /> Hồ sơ của tôi
+          </div>
           <div className="nav-item"><FileText size={18} /> Đơn ứng tuyển</div>
-          <div className={`nav-item ${currentStep === 2 ? "active" : ""}`} onClick={() => jumpToStep(2)}><FolderOpen size={18} /> Tài liệu</div>
-          <div className={`nav-item ${currentStep === 3 ? "active" : ""}`} onClick={() => jumpToStep(3)}><ShieldCheck size={18} /> Kiểm tra lại</div>
-          <div className="nav-item"><GraduationCap size={18} /> Trường đại học</div>
+          <div
+            className={`nav-item ${activePage === "steps" && currentStep === 2 ? "active" : ""}`}
+            onClick={() => {
+              setActivePage("steps");
+              jumpToStep(2);
+            }}
+          >
+            <FolderOpen size={18} /> Tài liệu
+          </div>
+          <div
+            className={`nav-item ${activePage === "steps" && currentStep === 3 ? "active" : ""}`}
+            onClick={() => {
+              setActivePage("steps");
+              jumpToStep(3);
+            }}
+          >
+            <ShieldCheck size={18} /> Kiểm tra lại
+          </div>
+          <div
+            className={`nav-item ${activePage === "university" ? "active" : ""}`}
+            onClick={() => setActivePage("university")}
+          >
+            <GraduationCap size={18} /> Trường đại học
+          </div>
         </nav>
         <button className="logout" onClick={onLogout}><LogOut size={18} /> Đăng xuất</button>
       </aside>
 
       <main className="main-content">
         <header className="top-header">
-          <h1>Tạo hồ sơ</h1>
+          <h1>{activePage === "university" ? "Kết quả tuyển sinh của bạn" : "Tạo hồ sơ"}</h1>
           <div className="header-actions"><div className="notif-btn"><Bell size={20} /><span className="notif-dot"></span></div><div className="header-divider"></div><HelpCircle size={19} /> Tro giup</div>
         </header>
 
         <div className="content-shell">
+          {activePage === "university" && (
+            <section className="uni-shell">
+              <div className="uni-header">
+                <div>
+                  <h2 className="uni-title">Kết quả tuyển sinh của bạn </h2>
+                  <p className="uni-sub">Vui lòng chọn một trường để xác nhận</p>
+                </div>
+                {universities.length > 0 && (
+                  <button className="btn-light" onClick={openAddUniversity}>Thêm trường</button>
+                )}
+              </div>
+
+              {universities.some(u => u.status === 'approved' || u.is_enrolled) && (
+                <div className="uni-banner">
+                  Chúc mừng ! Bạn đã nhận được thư mời nhập học
+                </div>
+              )}
+
+              {universities.length === 0 ? (
+                <div className="uni-list">
+                  <button className="uni-add" onClick={openAddUniversity}>+</button>
+                </div>
+              ) : (
+                <>
+                  <div className="uni-list">
+                    {universities.map((uni) => {
+                      const selected = selectedUniId === uni.id;
+                      let statusText = uni.status === "approved" ? "TRÚNG TUYỂN" : uni.status === "rejected" ? "TỪ CHỐI" : "ĐANG CHỜ";
+                      let badgeClass = uni.status === "approved" ? "uni-badge" : "uni-badge wait";
+                      if (uni.is_enrolled) {
+                        statusText = "ĐÃ CHỌN NHẬP HỌC";
+                        badgeClass = "uni-badge enrolled"; // Requires some CSS though
+                      }
+                      return (
+                        <div
+                          className={`uni-item ${selected ? "selected" : ""}`}
+                          key={uni.id}
+                          onClick={() => setSelectedUniId(uni.id)}
+                        >
+                          <div className="uni-radio">
+                            {selected && <div className="uni-radio-dot" />}
+                          </div>
+                          <div className="uni-logo">{uni.name.slice(0, 2).toUpperCase()}</div>
+                          <div className="uni-meta">
+                            <div className="uni-name">{uni.name}</div>
+                            <div className="uni-desc">Cập nhật lúc: {formatDate(uni.createdAt)}</div>
+                            {uni.offer_letter_url && (
+                              <div className="uni-row">
+                                <a href={uni.offer_letter_url} target="_blank" rel="noreferrer" style={{color: '#2563eb', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                  Xem Offer Letter
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                          <div className={badgeClass} style={uni.is_enrolled ? {background: '#dcfce7', color: '#15803d'} : {}}>{statusText}</div>
+                        </div>
+                      );
+                    })}
+                    <button className="uni-add" onClick={openAddUniversity}>+</button>
+                  </div>
+
+                  <div className="uni-footer">
+                    <div>
+                      <div className="uni-footer-note">Truong dang chon:</div>
+                      <div className="uni-name">
+                        {universities.find((u) => u.id === selectedUniId)?.name || "-"}
+                      </div>
+                    </div>
+                    {(() => {
+                      const selectedU = universities.find((u) => u.id === selectedUniId);
+                      const isEnrolledAny = universities.some(u => u.is_enrolled);
+                      if (selectedU?.is_enrolled) {
+                        return <button className="btn-confirm" disabled style={{ background: '#dcfce7', color: '#15803d' }}>Đã xác nhận</button>;
+                      }
+                      if (selectedU?.status === 'approved' && !isEnrolledAny) {
+                        return <button className="btn-confirm" onClick={handleEnroll}>Xác nhận nhập học</button>;
+                      }
+                      return <button className="btn-confirm" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>Không thể xác nhận</button>;
+                    })()}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
+          {activePage === "steps" && (
           <div className="stepper">
             <div className={`step-item ${currentStep === 1 ? "active" : currentStep > 1 ? "done" : ""}`}>
               <div className="step-circle">{currentStep > 1 ? <Check size={16} /> : "1"}</div>
@@ -1374,8 +1908,9 @@ export default function Step1Form({ user, onLogout }) {
               <span className="step-label">{isCompleted ? "Hoàn tất" : "Kiểm tra lại"}</span>
             </div>
           </div>
+          )}
 
-          {loadingProfile && (
+          {activePage === "steps" && loadingProfile && (
             <section className="form-container">
               <div className="form-title">
                 <h2>Đang tải dữ liệu...</h2>
@@ -1384,7 +1919,7 @@ export default function Step1Form({ user, onLogout }) {
             </section>
           )}
 
-          {!loadingProfile && currentStep === 0 && applicationStatus === 'fix_required' && (
+          {activePage === "steps" && !loadingProfile && currentStep === 0 && applicationStatus === 'fix_required' && (
             <section className="form-container">
               <div className="section-header">
                 <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Chỉnh sửa hồ sơ nhập học</h2>
@@ -1488,7 +2023,7 @@ export default function Step1Form({ user, onLogout }) {
             </section>
           )}
 
-          {!loadingProfile && currentStep === 1 && (
+          {activePage === "steps" && !loadingProfile && currentStep === 1 && (
             <section className="form-container">
               <div className="form-title">
                 <h2>Thông tin cá nhân</h2>
@@ -1598,7 +2133,7 @@ export default function Step1Form({ user, onLogout }) {
           )}
 
 
-          {!loadingProfile && currentStep === 2 && (
+          {activePage === "steps" && !loadingProfile && currentStep === 2 && (
             <section className="form-container">
               <div className="form-title">
                 <h2>Tải tài liệu </h2>
@@ -1689,7 +2224,7 @@ export default function Step1Form({ user, onLogout }) {
               </div>
             </section>
           )}
-          {!loadingProfile && currentStep === 3 && (
+          {activePage === "steps" && !loadingProfile && currentStep === 3 && (
             <section className="form-container">
               <div className="form-title">
                 <h2>Kiểm tra lại </h2>
@@ -1761,9 +2296,40 @@ export default function Step1Form({ user, onLogout }) {
           </div>
         )}
       </main>
+
+      {confirmModal.show && (
+        <div className="modal-overlay" onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon warning">
+              <AlertTriangle size={32} />
+            </div>
+            <div className="modal-message">{confirmModal.message}</div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button className="btn-modal-secondary" onClick={() => setConfirmModal({ ...confirmModal, show: false })}>Hủy</button>
+              <button className="btn-modal-close" style={{ background: confirmModal.confirmText.includes('xóa') ? '#ef4444' : '#2563eb' }} onClick={confirmModal.onConfirm}>
+                {confirmModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {notification.show && (
+        <div className="modal-overlay" onClick={() => setNotification({ ...notification, show: false })}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className={`modal-icon ${notification.type}`}>
+              {notification.type === 'success' ? <CheckCircle2 size={32} /> : (notification.type === 'error' ? <AlertTriangle size={32} /> : <Clock size={32} />)}
+            </div>
+            <div className="modal-message">{notification.message}</div>
+            <button className="btn-modal-close" onClick={() => setNotification({ ...notification, show: false })}>Đóng</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+
 
 
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronRight, CheckCircle2, AlertTriangle, Clock, Search, Bell, ZoomIn, ZoomOut, Printer, Maximize2, Shield, Edit3, ArrowLeft } from "lucide-react";
+import { ChevronRight, CheckCircle2, AlertTriangle, Clock, Search, Bell, ZoomIn, ZoomOut, Printer, Maximize2, Shield, Edit3, ArrowLeft, UploadCloud, ChevronDown, ChevronUp, FileText } from "lucide-react";
 
 // Categorization logic
 const CATEGORIES = {
@@ -16,6 +16,15 @@ function getCategory(docName) {
 }
 
 const API_BASE = "http://localhost:5000";
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+function getFileExtension(name) {
+  if (!name) return "";
+  const idx = name.lastIndexOf(".");
+  if (idx <= 0 || idx === name.length - 1) return "";
+  return name.slice(idx + 1).toLowerCase();
+}
 
 export default function AdminStudentDetail({ student, initialDocs = [], onBack, refreshData }) {
   const [activeTab, setActiveTab] = useState("Hồ sơ tài liệu");
@@ -35,7 +44,122 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
     if (activeTab === "Trạng thái và Lịch sử" && student?.userId) {
       fetchHistory();
     }
+    if (activeTab === "Kết quả đại học" && student?.userId) {
+      fetchUniversities();
+    }
   }, [activeTab, student]);
+
+  const [universities, setUniversities] = useState([]);
+  const [expandedUniId, setExpandedUniId] = useState(null);
+  const [isUploadingOffer, setIsUploadingOffer] = useState(false);
+  const [offerFile, setOfferFile] = useState(null);
+
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', confirmText: 'Xác nhận', onConfirm: null });
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    if (type === 'success') {
+      setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 3000);
+    }
+  };
+
+  const fetchUniversities = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/student/universities/${student.userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setUniversities(data.universities || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUploadOffer = async (uniId) => {
+    if (!offerFile) return;
+    setIsUploadingOffer(true);
+    try {
+      const ext = getFileExtension(offerFile.name);
+      const publicId = `offer_${uniId}_${Date.now()}`;
+      const safeDoc = `offer_letters`;
+      
+      const formData = new FormData();
+      formData.append("file", offerFile);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+      formData.append("folder", `student_docs/${student.userId}/${safeDoc}`);
+      formData.append("public_id", publicId);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error("Cloudinary error: " + errText);
+      }
+      const cloudinaryResponse = await res.json().catch(e => { throw new Error("Cloudinary parse error: " + e.message) });
+      let fileUrl = cloudinaryResponse.secure_url;
+      
+      // Ensure the URL has the correct extension so browsers can preview PDFs correctly
+      if (ext && !fileUrl.toLowerCase().endsWith(`.${ext}`)) {
+        fileUrl += `.${ext}`;
+      }
+
+      const offerRes = await fetch(`${API_BASE}/api/admin/universities/offer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: student.userId, uniId, fileUrl })
+      });
+      if (offerRes.ok) {
+        showNotification("Đã cập nhật Offer Letter", "success");
+        setOfferFile(null);
+        setExpandedUniId(null);
+        fetchUniversities();
+        fetchHistory();
+      } else {
+        const d = await res.json().catch(() => ({ message: "Lỗi phản hồi từ server" }));
+        showNotification(d.message || "Unknown error", "error");
+      }
+    } catch (err) {
+      showNotification("Lỗi khi tải Offer Letter (" + (err.message || "") + ")", "error");
+    } finally {
+      setIsUploadingOffer(false);
+    }
+  };
+
+  const handleRemoveOffer = (uniId) => {
+    setConfirmModal({
+      show: true,
+      message: "Bạn có chắc chắn muốn xóa thư mời này không? Trạng thái sẽ trở về Đang chờ.",
+      confirmText: "Xác nhận xóa",
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, show: false }));
+        setIsUploadingOffer(true);
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/universities/remove-offer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: student.userId, uniId })
+          });
+          if (res.ok) {
+            showNotification("Đã xóa thư mời nhập học.", "success");
+            setExpandedUniId(null);
+            fetchUniversities();
+            fetchHistory();
+          } else {
+            const d = await res.json().catch(() => ({ message: "Lỗi phản hồi" }));
+            showNotification(d.message || "Không thể xóa thư mời", "error");
+          }
+        } catch (err) {
+          showNotification("Lỗi khi kết nối đến máy chủ.", "error");
+        } finally {
+          setIsUploadingOffer(false);
+        }
+      }
+    });
+  };
 
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
@@ -54,7 +178,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
 
   const handleUpdateStatus = async () => {
     if (newStatus === "fix_required" && !historyNote.trim()) {
-      alert("Vui lòng nhập ghi chú giải thích các chỉnh sửa cần thiết.");
+      showNotification("Vui lòng nhập ghi chú giải thích các chỉnh sửa cần thiết.", "warning");
       return;
     }
     setIsUpdatingStatus(true);
@@ -76,26 +200,32 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
         setHistoryNote("");
         fetchHistory();
         if (refreshData) refreshData();
+        showNotification("Cập nhật trạng thái thành công!", "success");
       } else {
         const data = await res.json();
-        alert(data.message);
+        showNotification(data.message, "error");
       }
     } catch (e) {
-      alert("Không thể ghi nhận lịch sử thay đổi. Vui lòng thử lại.");
+      showNotification("Không thể ghi nhận lịch sử thay đổi. Vui lòng thử lại.", "error");
     } finally {
       setIsUpdatingStatus(false);
     }
   };
 
-  const translateStatus = (st) => {
-    switch(st) {
-      case 'received': return { label: 'TIẾP NHẬN', bg: '#fef3c7', col: '#d97706' };
-      case 'processing': return { label: 'ĐANG XỬ LÝ', bg: '#dbeafe', col: '#1d4ed8' };
-      case 'fix_required': return { label: 'CẦN BỔ SUNG', bg: '#fee2e2', col: '#dc2626' };
-      case 'completed': return { label: 'HOÀN THÀNH', bg: '#dcfce7', col: '#15803d' };
-      default: return { label: st?.toUpperCase() || 'UNKNOWN', bg: '#f1f5f9', col: '#475569' };
+  const getStatusUI = (s) => {
+    switch (s) {
+      case "received": return { label: "TIẾP NHẬN", bg: "#f1f5f9", col: "#475569" };
+      case "processing": return { label: "ĐANG XỬ LÝ", bg: "#fef9c3", col: "#ca8a04" };
+      case "fix_required": return { label: "CẦN BỔ SUNG", bg: "#fee2e2", col: "#ef4444" };
+      case "completed": return { label: "HOÀN THÀNH", bg: "#dcfce7", col: "#22c55e" };
+      case "doc_approved": return { label: "DUYỆT TÀI LIỆU", bg: "#dcfce7", col: "#16a34a" };
+      case "doc_rejected": return { label: "TỪ CHỐI TÀI LIỆU", bg: "#fee2e2", col: "#dc2626" };
+      case "offer_uploaded": return { label: "TẢI LÊN OFFER", bg: "#dbeafe", col: "#2563eb" };
+      case "offer_deleted": return { label: "XÓA THƯ MỜI", bg: "#f1f5f9", col: "#475569" };
+      default: return { label: (s || "UNKNOWN").toUpperCase(), bg: "#f1f5f9", col: "#475569" };
     }
   };
+
   const [newNote, setNewNote] = useState("");
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
@@ -139,12 +269,13 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
       if (res.ok) {
         setNewNote("");
         fetchNotes();
+        showNotification("Đã lưu ghi chú.", "success");
       } else {
         const data = await res.json();
-        alert(data.message);
+        showNotification(data.message, "error");
       }
     } catch (e) {
-      alert("Lỗi khi lưu ghi chú.");
+      showNotification("Lỗi khi lưu ghi chú.", "error");
     } finally {
       setIsSavingNote(false);
     }
@@ -189,12 +320,13 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
       if (res.ok) {
         setDocuments(prev => prev.map(d => d.doc_name === activeDocName ? { ...d, status: 'approved', admin_feedback: '' } : d));
         setFeedbackText("");
+        fetchHistory();
       } else {
-        const error = await res.json();
-        alert(error.message);
+        const error = await res.json().catch(() => ({ message: "Lỗi phản hồi" }));
+        showNotification(error.message || "Không thể phê duyệt tài liệu.", "error");
       }
     } catch (err) {
-      alert("Lỗi khi phê duyệt.");
+      showNotification("Lỗi khi phê duyệt tải liệu.", "error");
     } finally {
       setIsProcessing(false);
     }
@@ -202,7 +334,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
 
   const handleRejectDoc = async () => {
     if (!feedbackText.trim()) {
-      alert("Vui lòng nhập lý do từ chối để sinh viên có thể sửa đổi.");
+      showNotification("Vui lòng nhập lý do từ chối để sinh viên có thể sửa đổi.", "warning");
       return;
     }
     if (!activeDocName || !activeDoc.file_name) return;
@@ -222,12 +354,13 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: student.userId })
         });
+        fetchHistory();
       } else {
-        const error = await res.json();
-        alert(error.message);
+        const error = await res.json().catch(() => ({ message: "Lỗi phản hồi" }));
+        showNotification(error.message || "Không thể từ chối tài liệu.", "error");
       }
     } catch (err) {
-      alert("Lỗi khi từ chối.");
+      showNotification("Lỗi khi từ chối.", "error");
     } finally {
       setIsProcessing(false);
     }
@@ -235,33 +368,39 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
 
   const handleApproveAll = async () => {
     if (!allApproved) {
-      alert("Không thể phê duyệt toàn bộ vì có tài liệu chưa xác minh hoặc bị từ chối.");
+      showNotification("Không thể phê duyệt toàn bộ vì có tài liệu chưa xác minh hoặc bị từ chối.", "warning");
       return;
     }
 
-    if (!window.confirm("Bạn có chắc chắn muốn phê duyệt và hoàn tất hồ sơ này không?")) return;
-
-    setIsProcessing(true);
-    // Call approve all API
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/profile/approve-all`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: student.userId })
-      });
-      if (res.ok) {
-        alert("Hồ sơ đã được phê duyệt toàn bộ và chuyển qua Hoàn Thành.");
-        if (refreshData) refreshData();
-        onBack();
-      } else {
-        const json = await res.json();
-        alert(json.message);
+    setConfirmModal({
+      show: true,
+      message: "Bạn có chắc chắn muốn phê duyệt và hoàn tất hồ sơ này không? Hành động này sẽ chuyển trạng thái hồ sơ sang Hoàn Thành.",
+      confirmText: "Phê duyệt toàn bộ",
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, show: false }));
+        setIsProcessing(true);
+        try {
+          const res = await fetch(`${API_BASE}/api/admin/profile/approve-all`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: student.userId })
+          });
+          if (res.ok) {
+            showNotification("Hồ sơ đã được phê duyệt toàn bộ.", "success");
+            fetchHistory();
+            if (refreshData) refreshData();
+            onBack();
+          } else {
+            const json = await res.json().catch(() => ({ message: "Lỗi phản hồi" }));
+            showNotification(json.message || "Lỗi phê duyệt hồ sơ", "error");
+          }
+        } catch (e) {
+          showNotification("Lỗi kết nối máy chủ.", "error");
+        } finally {
+          setIsProcessing(false);
+        }
       }
-    } catch (e) {
-      alert("Lỗi khi phê duyệt toàn bộ.");
-    } finally {
-      setIsProcessing(false);
-    }
+    });
   };
 
   return (
@@ -480,6 +619,18 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           flex-direction: column;
           overflow: hidden;
         }
+        .scrollable {
+          overflow-y: auto;
+          scrollbar-width: thin;
+          min-height: 0;
+        }
+        .scrollable::-webkit-scrollbar {
+          width: 6px;
+        }
+        .scrollable::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1;
+          border-radius: 3px;
+        }
         .right-panel.scrollable {
           overflow-y: auto;
         }
@@ -637,6 +788,102 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           border: 1px solid #fde68a; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;
         }
         .note-content { font-size: 14px; color: #334155; line-height: 1.6; white-space: pre-wrap; }
+        .uni-item { background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 20px; overflow: hidden; }
+        .uni-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; }
+        .uni-info { display: flex; align-items: center; gap: 16px; }
+        .uni-logo { width: 44px; height: 44px; border-radius: 12px; background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 16px; }
+        .uni-name { font-size: 16px; font-weight: 700; color: #0f172a; }
+        .uni-meta { font-size: 13px; color: #64748b; margin-top: 4px; }
+        .uni-status-row { display: flex; align-items: center; gap: 12px; }
+        .uni-status-badge { padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .uni-status-approved { background: #dbeafe; color: #2563eb; }
+        .uni-status-pending { background: #e2e8f0; color: #475569; }
+        .uni-status-enrolled { background: #dcfce7; color: #15803d; }
+        .btn-view-offer { background: transparent; color: #2563eb; border: none; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .uni-action-btn { background: #f1f5f9; color: #475569; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .uni-action-btn:hover { background: #e2e8f0; }
+        .uni-upload-area { background: #f8fafc; padding: 32px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; }
+        .dropzone { border: 1px dashed #cbd5e1; border-radius: 16px; width: 100%; max-width: 500px; padding: 40px; text-align: center; background: #fff; position: relative; cursor: pointer; }
+        .dropzone:hover { border-color: #2563eb; }
+        .dropzone-input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+        .dropzone-icon { width: 48px; height: 48px; background: #dbeafe; color: #2563eb; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 16px; }
+        .dropzone-text { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+        .dropzone-sub { font-size: 13px; color: #64748b; }
+        .upload-actions { display: flex; gap: 16px; margin-top: 24px; align-items: center; }
+        .btn-cancel { background: transparent; border: none; color: #475569; font-weight: 600; font-size: 14px; cursor: pointer; }
+        .btn-save-offer { background: #2563eb; color: #fff; border: none; padding: 10px 24px; border-radius: 999px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .btn-save-offer:disabled { opacity: 0.6; cursor: not-allowed; }
+        /* Notification Modal */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(15, 23, 42, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content {
+          background: white;
+          padding: 32px;
+          border-radius: 24px;
+          max-width: 400px;
+          width: 90%;
+          text-align: center;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          animation: slideUp 0.3s ease-out;
+        }
+        .modal-icon {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 20px;
+        }
+        .modal-icon.success { background: #dcfce7; color: #16a34a; }
+        .modal-icon.error { background: #fee2e2; color: #dc2626; }
+        .modal-icon.warning { background: #fef3c7; color: #d97706; }
+        .modal-message {
+          font-size: 16px;
+          font-weight: 600;
+          color: #0f172a;
+          line-height: 1.5;
+          margin-bottom: 24px;
+        }
+        .btn-modal-close {
+          background: #0f172a;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          min-width: 120px;
+        }
+        .btn-modal-secondary {
+          background: #f1f5f9;
+          color: #475569;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          min-width: 100px;
+        }
+        .btn-modal-close:hover { background: #1e293b; transform: translateY(-1px); }
+        .btn-modal-secondary:hover { background: #e2e8f0; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
       `}</style>
 
       {/* Top Navbar */}
@@ -687,7 +934,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
 
       {/* Tabs */}
       <div className="tabs-row">
-        {["Thông tin cá nhân", "Hồ sơ tài liệu", "Trạng thái và Lịch sử", "Ghi chú"].map(tab => (
+        {["Thông tin cá nhân", "Hồ sơ tài liệu", "Kết quả đại học", "Trạng thái và Lịch sử", "Ghi chú"].map(tab => (
           <div key={tab} className={`tab ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
             {tab === "Ghi chú" && notes.length > 0 ? `Ghi chú (${notes.length})` : tab}
           </div>
@@ -751,7 +998,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           ))}
         </div>
 
-        <div className={`right-panel ${activeTab === "Hồ sơ tài liệu" ? "scrollable" : ""}`}>
+        <div className={`right-panel ${["Hồ sơ tài liệu", "Kết quả đại học"].includes(activeTab) ? "scrollable" : ""}`}>
           {activeTab === "Thông tin cá nhân" ? (
             <div className="personal-card">
               <div className="preview-header" style={{ padding: 0, borderBottom: "none", marginBottom: 16 }}>
@@ -951,7 +1198,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                   <div style={{ fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Clock size={18} color="#64748b" /> Lịch sử thay đổi
                   </div>
-                  <button style={{ background: 'transparent', color: '#2563eb', border: 'none', fontSize: '14px', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => alert("Báo cáo đã xuất thành công!")}>
+                  <button style={{ background: 'transparent', color: '#2563eb', border: 'none', fontSize: '14px', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => showNotification("Báo cáo đã xuất thành công!", "success")}>
                     Tải về báo cáo
                   </button>
                 </div>
@@ -973,7 +1220,7 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                         <tr><td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Chưa có lịch sử thay đổi trạng thái nào.</td></tr>
                       ) : (
                         history.map(row => {
-                          const uiStatus = translateStatus(row.status);
+                          const uiStatus = getStatusUI(row.status);
                           return (
                             <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                               <td style={{ padding: '16px 8px', verticalAlign: 'top' }}>
@@ -999,10 +1246,115 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                   </table>
                 </div>
 
-                <div style={{ padding: '16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
+                 <div style={{ padding: '16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
                   Hiển thị {history.length} trên tổng số {history.length} bản ghi lịch sử
                 </div>
               </div>
+            </div>
+          ) : activeTab === "Kết quả đại học" ? (
+            <div className="scrollable" style={{ padding: '24px', maxWidth: '900px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+              {universities.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Chưa có danh sách trường</div>
+              ) : (
+                universities.map(uni => {
+                  const isExpanded = expandedUniId === uni.id;
+                  const uniTitle = uni.university_name || "Trường chưa xác định";
+                  const initial = uniTitle.slice(0, 1).toUpperCase();
+                  return (
+                    <div className="uni-item" key={uni.id}>
+                      <div className="uni-header">
+                        <div className="uni-info">
+                          <div className="uni-logo">{initial}</div>
+                          <div>
+                            <div className="uni-name">{uniTitle}</div>
+                            <div className="uni-meta">Cập nhật lúc: {formatDate(uni.created_at)}</div>
+                          </div>
+                        </div>
+                        <div className="uni-status-row">
+                          {uni.is_enrolled ? (
+                            <div className="uni-status-badge uni-status-enrolled">ĐÃ CHỌN NHẬP HỌC</div>
+                          ) : uni.status === 'approved' ? (
+                            <div className="uni-status-badge uni-status-approved">ĐÃ TRÚNG TUYỂN</div>
+                          ) : (
+                            <div className="uni-status-badge uni-status-pending">ĐANG CHỜ</div>
+                          )}
+
+                          {uni.offer_letter_url ? (
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <button className="btn-view-offer" onClick={() => window.open(uni.offer_letter_url, "_blank")}>
+                                <FileText size={16} /> Xem Offer Letter
+                              </button>
+                              <button className="uni-action-btn" onClick={() => {
+                                setExpandedUniId(isExpanded ? null : uni.id);
+                                setOfferFile(null);
+                              }}>
+                                {isExpanded ? "Đóng" : "Sửa"} {isExpanded ? <ChevronUp size={16}/> : <Edit3 size={16}/>}
+                              </button>
+                            </div>
+                          ) : (
+                            <button className="uni-action-btn" onClick={() => {
+                              setExpandedUniId(isExpanded ? null : uni.id);
+                              setOfferFile(null);
+                            }}>
+                              {isExpanded ? "Đóng" : "Cập nhật"} {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="uni-upload-area">
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', alignSelf: 'flex-start', maxWidth: '500px', margin: '0 auto 16px', width: '100%' }}>Cập nhật hồ sơ trúng tuyển</div>
+                          <div className="dropzone">
+                            <input 
+                              type="file" 
+                              className="dropzone-input" 
+                              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" 
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  const file = e.target.files[0];
+                                  if (file.size > 10 * 1024 * 1024) {
+                                    showNotification("Tệp của bạn vượt quá dung lượng cho phép. Vui lòng chọn tệp có kích thước nhỏ hơn 10MB để tải lên thành công.", "warning");
+                                    e.target.value = '';
+                                    return;
+                                  }
+                                  const ext = getFileExtension(file.name);
+                                  if (!['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'].includes(ext)) {
+                                    showNotification("Định dạng không được hỗ trợ", "error");
+                                    e.target.value = '';
+                                    return;
+                                  }
+                                  setOfferFile(file);
+                                }
+                              }} 
+                            />
+                            <div className="dropzone-icon"><UploadCloud size={24} /></div>
+                            <div className="dropzone-text">Tải lên Offer Letter</div>
+                            <div className="dropzone-sub">{offerFile ? offerFile.name : "Kéo thả hoặc nhấp để chọn tệp (PDF, JPG, PNG, Word..."}</div>
+                            <div className="dropzone-sub" style={{ marginTop: 8 }}>Tối đa 10MB</div>
+                          </div>
+                          <div className="upload-actions">
+                            <button className="btn-cancel" onClick={() => { setExpandedUniId(null); setOfferFile(null); }}>Hủy</button>
+                            {uni.offer_letter_url && (
+                              <button 
+                                className="btn-cancel" 
+                                style={{ color: '#ef4444', borderColor: '#fee2e2' }} 
+                                onClick={() => handleRemoveOffer(uni.id)}
+                                disabled={isUploadingOffer}
+                              >
+                                {isUploadingOffer ? "Đang xử lý..." : "Xóa thư mời"}
+                              </button>
+                            )}
+                            <button className="btn-save-offer" onClick={() => handleUploadOffer(uni.id)} disabled={!offerFile || isUploadingOffer}>
+                              <Edit3 size={16} /> {isUploadingOffer ? "Đang xử lý..." : "Lưu & Cập nhật trạng thái"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
@@ -1011,6 +1363,33 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
           )}
         </div>
       </div>
+      {confirmModal.show && (
+        <div className="modal-overlay" onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon warning">
+              <AlertTriangle size={32} />
+            </div>
+            <div className="modal-message">{confirmModal.message}</div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button className="btn-modal-secondary" onClick={() => setConfirmModal({ ...confirmModal, show: false })}>Hủy</button>
+              <button className="btn-modal-close" style={{ background: confirmModal.confirmText.includes('xóa') ? '#ef4444' : '#2563eb' }} onClick={confirmModal.onConfirm}>
+                {confirmModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {notification.show && (
+        <div className="modal-overlay" onClick={() => setNotification({ ...notification, show: false })}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className={`modal-icon ${notification.type}`}>
+              {notification.type === 'success' ? <CheckCircle2 size={32} /> : (notification.type === 'error' ? <AlertTriangle size={32} /> : <Clock size={32} />)}
+            </div>
+            <div className="modal-message">{notification.message}</div>
+            <button className="btn-modal-close" onClick={() => setNotification({ ...notification, show: false })}>Đóng</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
