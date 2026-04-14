@@ -246,6 +246,7 @@ export default function Step1Form({ user, onLogout }) {
   const [isAddUniOpen, setIsAddUniOpen] = useState(false);
   const [uniName, setUniName] = useState("");
   const [selectedUniId, setSelectedUniId] = useState(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', confirmText: 'Xác nhận', onConfirm: null });
 
@@ -555,6 +556,12 @@ export default function Step1Form({ user, onLogout }) {
     } catch (e) {
       showNotification("Không thể thêm trường.", "error");
     }
+  };
+
+
+  const openConfirm = () => {
+    if (!selectedUniId) return;
+    setIsConfirmOpen(true);
   };
 
   useEffect(() => {
@@ -1599,6 +1606,16 @@ export default function Step1Form({ user, onLogout }) {
           font-weight: 700;
           cursor: pointer;
         }
+        .btn-danger {
+          height: 40px;
+          padding: 0 16px;
+          border-radius: 10px;
+          border: none;
+          background: #ef4444;
+          color: #fff;
+          font-weight: 700;
+          cursor: pointer;
+        }
         .modal-mask {
           position: fixed;
           inset: 0;
@@ -1744,16 +1761,16 @@ export default function Step1Form({ user, onLogout }) {
           {isAddUniOpen && (
             <div className="modal-mask" onClick={() => setIsAddUniOpen(false)}>
               <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-title">Them truong dai hoc</div>
+                <div className="modal-title">Thêm trường đại học</div>
                 <input
                   className="modal-input"
-                  placeholder="Nhap ten truong dai hoc..."
+                  placeholder="Nhập tên trường đại học..."
                   value={uniName}
                   onChange={(e) => setUniName(e.target.value)}
                 />
                 <div className="modal-actions">
-                  <button className="btn-light" onClick={() => setIsAddUniOpen(false)}>Huy</button>
-                  <button className="btn-next" onClick={addUniversity}>Them</button>
+                  <button className="btn-light" onClick={() => setIsAddUniOpen(false)}>Hủy</button>
+                  <button className="btn-next" onClick={addUniversity}>Thêm</button>
                 </div>
               </div>
             </div>
@@ -1802,7 +1819,7 @@ export default function Step1Form({ user, onLogout }) {
       <main className="main-content">
         <header className="top-header">
           <h1>{activePage === "university" ? "Kết quả tuyển sinh của bạn" : "Tạo hồ sơ"}</h1>
-          <div className="header-actions"><div className="notif-btn"><Bell size={20} /><span className="notif-dot"></span></div><div className="header-divider"></div><HelpCircle size={19} /> Tro giup</div>
+          <div className="header-actions"><div className="notif-btn"><Bell size={20} /><span className="notif-dot"></span></div><div className="header-divider"></div><HelpCircle size={19} /> Trợ giúp</div>
         </header>
 
         <div className="content-shell">
@@ -1869,7 +1886,7 @@ export default function Step1Form({ user, onLogout }) {
 
                   <div className="uni-footer">
                     <div>
-                      <div className="uni-footer-note">Truong dang chon:</div>
+                      <div className="uni-footer-note">Trường đang chọn:</div>
                       <div className="uni-name">
                         {universities.find((u) => u.id === selectedUniId)?.name || "-"}
                       </div>
