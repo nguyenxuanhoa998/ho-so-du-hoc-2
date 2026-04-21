@@ -682,6 +682,7 @@ export default function AdminPortalPage({ user, onLogout, onLoginAsStudent }) {
               <AdminStudentDetail
                 student={selectedStudent}
                 initialDocs={documents}
+                adminUser={user}
                 onBack={() => {
                   setShowDetail(false);
                   setSelectedStudent(null);

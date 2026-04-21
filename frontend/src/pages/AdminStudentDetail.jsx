@@ -26,7 +26,7 @@ function getFileExtension(name) {
   return name.slice(idx + 1).toLowerCase();
 }
 
-export default function AdminStudentDetail({ student, initialDocs = [], onBack, refreshData }) {
+export default function AdminStudentDetail({ student, initialDocs = [], adminUser, onBack, refreshData }) {
   const [activeTab, setActiveTab] = useState("Hồ sơ tài liệu");
   const [activeDocName, setActiveDocName] = useState("");
   const [documents, setDocuments] = useState(initialDocs);
@@ -39,6 +39,8 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
   const [historyNote, setHistoryNote] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const [downloadModal, setDownloadModal] = useState({ show: false, password: '', isProcessing: false });
 
   useEffect(() => {
     if (activeTab === "Trạng thái và Lịch sử" && student?.userId) {
@@ -185,9 +187,9 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
     try {
       const payload = {
         userId: student.userId,
-        adminId: null,
-        adminName: "Admin User",
-        adminRole: "QUẢN TRỊ VIÊN (ADMIN)",
+        adminId: adminUser?.id || null,
+        adminName: adminUser?.fullName || "Admin User",
+        adminRole: adminUser?.role === 'admin' ? "QUẢN TRỊ VIÊN (ADMIN)" : (adminUser?.role || "QUẢN TRỊ VIÊN (ADMIN)"),
         status: newStatus,
         note: historyNote.trim()
       };
@@ -257,8 +259,9 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
     try {
       const payload = {
         studentId: student.userId,
-        adminName: "Admin User", 
-        adminRole: "QUẢN TRỊ VIÊN (ADMIN)",
+        adminId: adminUser?.id || null,
+        adminName: adminUser?.fullName || "Admin User", 
+        adminRole: adminUser?.role === 'admin' ? "QUẢN TRỊ VIÊN (ADMIN)" : (adminUser?.role || "QUẢN TRỊ VIÊN (ADMIN)"),
         content: newNote.trim()
       };
       const res = await fetch(`${API_BASE}/api/admin/student/notes`, {
@@ -401,6 +404,62 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
         }
       }
     });
+  };
+
+  const handleDownloadDoc = async () => {
+    if (!downloadModal.password) {
+      showNotification("Vui lòng nhập mật khẩu tải tài liệu.", "warning");
+      return;
+    }
+    setDownloadModal(prev => ({ ...prev, isProcessing: true }));
+    try {
+      // 1. Verify password
+      const verifyRes = await fetch(`${API_BASE}/api/admin/verify-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          adminEmail: adminUser?.email || '', 
+          adminPassword: downloadModal.password 
+        })
+      });
+      if (!verifyRes.ok) {
+        const errorData = await verifyRes.json();
+        showNotification(errorData.message || "Mật khẩu không đúng.", "error");
+        setDownloadModal(prev => ({ ...prev, isProcessing: false }));
+        return;
+      }
+      
+      // 2. Trigger Download
+      const link = document.createElement("a");
+      link.href = activeDoc.file_name;
+      link.target = "_blank";
+      link.download = activeDoc.doc_name || "document";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // 3. Log History
+      const payload = {
+        userId: student.userId,
+        adminId: adminUser?.id || null,
+        adminName: adminUser?.fullName || "Admin User",
+        adminRole: adminUser?.role === 'admin' ? "QUẢN TRỊ VIÊN (ADMIN)" : (adminUser?.role || "QUẢN TRỊ VIÊN (ADMIN)"),
+        status: "processing",
+        note: `Đã tải xuống tài liệu: ${activeDoc.doc_name}`
+      };
+      await fetch(`${API_BASE}/api/admin/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      fetchHistory();
+      
+      setDownloadModal({ show: false, password: '', isProcessing: false });
+      showNotification("Đã bắt đầu tải xuống tài liệu.", "success");
+    } catch (err) {
+      showNotification("Lỗi khi tải xuống tài liệu.", "error");
+      setDownloadModal(prev => ({ ...prev, isProcessing: false }));
+    }
   };
 
   return (
@@ -1053,13 +1112,20 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
                     <ZoomIn size={16} /> Xem trước: {activeDocName}
                   </div>
                   <div className="preview-tools">
-                    <ZoomIn size={16} /> <ZoomOut size={16} /> <Printer size={16} /> <Maximize2 size={16} />
+                    <ZoomIn size={16} /> <ZoomOut size={16} /> <Printer size={16} onClick={() => setDownloadModal(prev => ({ ...prev, show: true }))} /> <Maximize2 size={16} />
                   </div>
                 </div>
 
                 <div className="preview-body">
                   {activeDoc.file_name ? (
-                    <iframe title="Document Preview" src={activeDoc.file_name} className="doc-iframe" />
+                    (() => {
+                      const ext = getFileExtension(activeDoc.file_name);
+                      const isOfficeDoc = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext);
+                      const srcUrl = isOfficeDoc 
+                        ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(activeDoc.file_name)}` 
+                        : activeDoc.file_name;
+                      return <iframe title="Document Preview" src={srcUrl} className="doc-iframe" />;
+                    })()
                   ) : (
                     <div style={{ color: '#94a3b8', fontSize: 14 }}>Sinh viên chưa nộp tài liệu này</div>
                   )}
@@ -1387,6 +1453,32 @@ export default function AdminStudentDetail({ student, initialDocs = [], onBack, 
             </div>
             <div className="modal-message">{notification.message}</div>
             <button className="btn-modal-close" onClick={() => setNotification({ ...notification, show: false })}>Đóng</button>
+          </div>
+        </div>
+      )}
+      {downloadModal.show && (
+        <div className="modal-overlay" onClick={() => setDownloadModal(prev => ({ ...prev, show: false }))}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon warning" style={{ background: '#dbeafe', color: '#2563eb' }}>
+              <Printer size={32} />
+            </div>
+            <div className="modal-message">Bảo mật Tải Xuống</div>
+            <div style={{ fontSize: 14, color: '#64748b', marginBottom: 20 }}>
+              Vui lòng nhập mật khẩu admin <b>{adminUser?.email}</b> để xác nhận quyền tải xuống tài liệu <b>{activeDocName}</b>.
+            </div>
+            <input 
+              type="password" 
+              placeholder="Nhập mật khẩu của bạn"
+              value={downloadModal.password}
+              onChange={(e) => setDownloadModal(prev => ({ ...prev, password: e.target.value }))}
+              style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '20px', fontSize: 14, boxSizing: 'border-box' }}
+            />
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button className="btn-modal-secondary" onClick={() => setDownloadModal(prev => ({ ...prev, show: false }))} disabled={downloadModal.isProcessing}>Hủy</button>
+              <button className="btn-modal-close" style={{ background: '#2563eb' }} onClick={handleDownloadDoc} disabled={downloadModal.isProcessing}>
+                {downloadModal.isProcessing ? "Đang xử lý..." : "Xác nhận tải"}
+              </button>
+            </div>
           </div>
         </div>
       )}

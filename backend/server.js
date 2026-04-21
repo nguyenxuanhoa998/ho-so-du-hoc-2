@@ -341,6 +341,56 @@ db.connect((err) => {
         else console.log('Student status history table is ready.');
     });
 
+    const ensureUniversitiesTableSql = `
+        CREATE TABLE IF NOT EXISTS student_universities (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            university_name VARCHAR(255) NOT NULL,
+            status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+            offer_letter_url TEXT NULL,
+            is_enrolled TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_student_university_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `;
+    db.query(ensureUniversitiesTableSql, (uniErr) => {
+        if (uniErr) {
+            console.error('Ensure student_universities table error:', uniErr.message);
+            return;
+        }
+        console.log('Student universities table is ready.');
+
+        const ensureUniversityStatusColumnSql = `
+            ALTER TABLE student_universities
+            ADD COLUMN status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending'
+        `;
+        db.query(ensureUniversityStatusColumnSql, (alterStatusErr) => {
+            if (alterStatusErr && alterStatusErr.code !== 'ER_DUP_FIELDNAME') {
+                console.error('Ensure university status column error:', alterStatusErr.message);
+            }
+        });
+
+        const ensureOfferLetterColumnSql = `
+            ALTER TABLE student_universities
+            ADD COLUMN offer_letter_url TEXT NULL
+        `;
+        db.query(ensureOfferLetterColumnSql, (alterOfferErr) => {
+            if (alterOfferErr && alterOfferErr.code !== 'ER_DUP_FIELDNAME') {
+                console.error('Ensure offer_letter_url column error:', alterOfferErr.message);
+            }
+        });
+
+        const ensureUniversityEnrollColumnSql = `
+            ALTER TABLE student_universities
+            ADD COLUMN is_enrolled TINYINT(1) NOT NULL DEFAULT 0
+        `;
+        db.query(ensureUniversityEnrollColumnSql, (alterEnrollErr) => {
+            if (alterEnrollErr && alterEnrollErr.code !== 'ER_DUP_FIELDNAME') {
+                console.error('Ensure is_enrolled column error:', alterEnrollErr.message);
+            }
+        });
+    });
+
     (async () => {
         try {
             await ensureSecuritySchema();
@@ -948,6 +998,30 @@ app.post('/api/admin/create-student', async (req, res) => {
     }
 });
 
+
+app.post('/api/admin/verify-password', async (req, res) => {
+    const { adminEmail, adminPassword } = req.body;
+    if (!adminEmail || !adminPassword) {
+        return res.status(400).json({ message: 'Thiếu email hoặc mật khẩu.' });
+    }
+
+    try {
+        const adminRows = await dbQuery('SELECT id, password_salt, password_hash FROM users WHERE email = ? AND role = "admin" LIMIT 1', [(adminEmail || '').trim().toLowerCase()]);
+        if (!adminRows.length) {
+            return res.status(401).json({ message: 'Không tìm thấy tài khoản admin.' });
+        }
+        
+        const admin = adminRows[0];
+        const inputHash = await scryptHash(adminPassword, admin.password_salt);
+        if (inputHash !== admin.password_hash) {
+            return res.status(401).json({ message: 'Mật khẩu admin không đúng.' });
+        }
+        
+        return res.json({ message: 'Mật khẩu chính xác.' });
+    } catch (err) {
+        return res.status(500).json({ message: 'Lỗi kiểm tra mật khẩu.', error: err.message });
+    }
+});
 
 app.post('/api/admin/delete-student', async (req, res) => {
     const { adminId, adminEmail, adminPassword, studentId } = req.body;
